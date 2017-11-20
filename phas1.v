@@ -25,10 +25,8 @@ fun n n' => None.
 
 Definition update' f (x y z:nat) : nat -> nat -> option nat  := 
 fun (n n':nat) => 
-  if Nat.eqb n x 
-    then if Nat.eqb n' y 
-      then Some z else f n n'
-      else f n n'.
+  if (andb (Nat.eqb n x) (Nat.eqb n' y))
+      then Some z else f n n'.
 
 Compute b 0 0.
 
