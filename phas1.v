@@ -1,4 +1,13 @@
-(* Burrows-Wheeler transform defined in Coq. *)
+(* Burrows-Wheeler transform defined in Coq.
+ *
+ * Copyright (c) 2017
+ *
+ * Author: 
+ *          Alan Padilla Chua
+ *          Hanlin He
+ *          Paul Parrot
+ *          Sourav Dasgupta
+ *)
 
 Require Import List.
 Require Import Ascii.
@@ -7,74 +16,28 @@ Require Import String.
 Local Open Scope char_scope.
 Local Open Scope string_scope.
 
-Definition f : nat -> option nat := 
-fun n =>
-  if Nat.eqb n 0 then Some 1 else
-  if Nat.eqb n 2 then Some 5 else
-  if Nat.eqb n 5 then Some 13 else None.
+(** A generic "update" function for mapping "nat -> A". **)
+(* Note: The definition might be generalized again to update mapping "A -> B",
+ * but it would require to implement or pass as input an alternative comparing
+ * function other than "Nat.eqb". *)
+Definition update {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A := 
+  fun (n : nat) => if Nat.eqb n x then y else f n. 
 
-Eval compute in f 0.
-Eval compute in f 2.
-Eval compute in f 5.
-Eval compute in f 10.
-
-
-Definition update f (x: nat ) (y: option nat) : nat -> option nat  := 
-fun (n:nat) => 
-  if Nat.eqb n x then y else f n. 
-  
-Definition f' := update f 0 (Some 2).
-
-Compute f' 0.
-Compute f' 2.
-
-Definition b : nat -> nat -> option nat := 
-fun n n' => None.
-
-Definition update' f (x y z:nat) : nat -> nat -> option nat  := 
-fun (n n':nat) => 
-  if (andb (Nat.eqb n x) (Nat.eqb n' y))
-      then Some z else f n n'.
-
-Compute b 0 0.
-
-Compute (update' b 0 0 2) 0 0.
-
-
-
-Compute (update' (update' b 0 0 2) 0 0 3) 0 0.
-
-Definition matrix := (update' (update' (update' (update' b 0 0 3) 0 1 7) 1 0 9) 1 1 4).
-
-Compute matrix 0 0.
-Compute matrix 1 0.
-Compute matrix 0 1.
-Compute matrix 1 1.
-Compute matrix 3 0.
-
-(*
-I think it might not be easy to generate and update the matrix directly.
-"matrix : nat -> nat -> option nat" can be considered as
-"matrix : nat -> (nat -> option nat)", where "f : nat -> option nat" is the
-mapping from index to character in one permutation of a string.
-So we can first define a function to generate "f".
-*)
-
-(* Transform a string to a list of ascii. *)
+(** Transform a string to a list of ascii. **)
 Fixpoint string_to_list (s : string): list ascii := 
   match s with
     | EmptyString => nil
     | String h t => h :: string_to_list t
   end.
 
-(* Map ascii to nat in a list. *)
+(** Map ascii to nat in a list. **)
 Fixpoint ascii_to_nat_list (l : list ascii) : list (option nat) :=
   match l with
-  | nil => nil
-  | h :: t => Some (nat_of_ascii h) :: ascii_to_nat_list t
+    | nil => nil
+    | h :: t => Some (nat_of_ascii h) :: ascii_to_nat_list t
   end.
 
-(* Transform a nat list to a index to nat mapping, i.e. nat -> option nat. *)
+(** Transform a nat list to a index to nat mapping, i.e. nat -> option nat. **)
 Fixpoint list_to_map (l : list (option nat)) (m : nat) : nat -> option nat :=
   let f := fun _ => None in
   match l with
@@ -82,24 +45,48 @@ Fixpoint list_to_map (l : list (option nat)) (m : nat) : nat -> option nat :=
   | h :: t => update (list_to_map t (S m)) m h
   end.
 
-(* Use function defined above, generate a index to nat mapping from given string. *)
+(** Use function defined above, generate a index to nat mapping from given string. **)
 Definition string_to_map (word : string) : nat -> option nat :=
   list_to_map (ascii_to_nat_list (string_to_list word)) O.
 
-(* A helper function ("option nat -> option ascii") using library function
-"ascii_of_nat : nat -> ascii". *)
-Definition ascii_of_nat_option (a : option nat) : option ascii :=
+
+(** helper functions **)
+(* "option nat -> option ascii" using library function "ascii_of_nat : nat -> ascii". *)
+Definition ascii_of_nat_option (n : option nat) : option ascii :=
+  match n with
+  | None => None
+  | Some n' => Some (ascii_of_nat n')
+  end.
+(* "option ascii -> option nat" using library function "nat_of_ascii : ascii -> nat". *)
+Definition nat_of_ascii_option (a : option ascii) : option nat :=
   match a with
   | None => None
-  | Some a' => Some (ascii_of_nat a')
+  | Some a' => Some (nat_of_ascii a')
   end.
+Theorem ascii_nat_embedding_option :
+  forall a : option ascii, ascii_of_nat_option (nat_of_ascii_option a) = a.
+Proof.
+  intros.
+  destruct a.
+  - simpl. rewrite -> ascii_nat_embedding. reflexivity.
+  - simpl. reflexivity.
+Qed.
 
-(* Test "string_to_map". *)
-Definition hello_world := string_to_map "Cat".
+(* Alternative definition of "string_to_map", which use library function
+   "get : nat -> string -> option ascii" directly. *)
+Definition string_to_map' (word : string) : nat -> option nat :=
+  fun n => nat_of_ascii_option (get n word).
 
-Definition hello_world_len := length "Cat".
 
-Compute hello_world_len.
+(** Test "string_to_map". **)
+Definition hello_world_str := "Hello World!".
+Definition cat_str := "Cat".
+
+Definition hello_world := string_to_map hello_world_str.
+Definition hello_world_length := length hello_world_str.
+
+Definition cat := string_to_map cat_str.
+Definition cat_length := length cat_str.
 
 Compute ascii_of_nat_option (hello_world 0).
 Compute ascii_of_nat_option (hello_world 1).
@@ -114,16 +101,32 @@ Compute ascii_of_nat_option (hello_world 9).
 Compute ascii_of_nat_option (hello_world 10).
 Compute ascii_of_nat_option (hello_world 11).
 Compute ascii_of_nat_option (hello_world 12).
-Compute ascii_of_nat_option (hello_world 13).
-Compute ascii_of_nat_option (hello_world 14).
 
-Definition minus_one x :=
-  match x with
-  | O => O
-  | S x' => x'
-  end.
-  
-  
+(** Prove the "string_to_map" create right mapping. **)
+Theorem String_to_Map:
+  forall (s : string) (n : nat),
+    ascii_of_nat_option (string_to_map s n) = get n s.
+Proof.
+  intros s.
+  induction s.
+  - intros. simpl. reflexivity.
+  - intros. simpl. induction n.
+    + simpl. rewrite -> ascii_nat_embedding. reflexivity.
+    + 
+Admitted.
+
+Theorem String_to_Map':
+  forall (s : string) (n : nat),
+    ascii_of_nat_option (string_to_map' s n) = get n s.
+Proof.
+  intros s.
+  induction s.
+  - intros. simpl. reflexivity.
+  - intros. simpl. induction n.
+    + simpl. rewrite -> ascii_nat_embedding. reflexivity.
+    + unfold string_to_map'. simpl. rewrite -> ascii_nat_embedding_option. reflexivity.
+Qed.
+
 (* Following implementation relies on length of the string,
 which is hard to compute directly from the mapping,
 so the previously computed value used here (not good). *)
@@ -156,9 +159,9 @@ Definition last (m : nat -> option nat) : option nat := m hello_world_len.
 
 
 (* A modified version update to update mapping of mapping. *)
-Definition update'' f (x : nat) (y : nat -> option nat) : nat -> nat -> option nat := 
+(*Definition update'' f (x : nat) (y : nat -> option nat) : nat -> nat -> option nat := 
   fun (n:nat) => 
-    if Nat.eqb n x then y else f n.
+    if Nat.eqb n x then y else f n.*)
 
 
 Compute minus_one hello_world_len.
@@ -166,8 +169,8 @@ Compute minus_one hello_world_len.
 Fixpoint map_to_conjugacy (m : nat -> option nat) (l: nat) : nat -> nat -> option nat :=
   let f := fun _ _ => None in
   match l with
-  | O => update'' f O m
-  | S l' => update'' (map_to_conjugacy m l') l (right_shift ( (map_to_conjugacy m l')  l'))
+  | O => update f O m
+  | S l' => update (map_to_conjugacy m l') l (right_shift ( (map_to_conjugacy m l')  l'))
   end.
 
 
