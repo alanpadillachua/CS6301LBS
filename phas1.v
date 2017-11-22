@@ -151,3 +151,10 @@ Definition update'' f (x : nat) (y : nat -> option nat) : nat -> nat -> option n
   fun (n:nat) => 
     if Nat.eqb n x then y else f n.
 
+Definition map_to_jugacy (m : nat -> option nat) : nat -> nat -> option nat :=
+  let f := fun _ _ => None in
+  lef fix m_to_j 
+  match l with
+  | O => f
+  | S l' => update'' f l (right_shift (f l') hello_world_len)
+  end.
