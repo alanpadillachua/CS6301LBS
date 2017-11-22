@@ -112,7 +112,7 @@ Proof.
   - intros. simpl. reflexivity.
   - intros. simpl. induction n.
     + simpl. rewrite -> ascii_nat_embedding. reflexivity.
-    + 
+    + unfold string_to_map. simpl.
 Admitted.
 
 Theorem String_to_Map':
@@ -135,7 +135,7 @@ so the previously computed value used here (not good). *)
 Definition right_shift (m : nat -> option nat) : nat -> option nat :=
   fun n =>
     match n with
-    | O => m hello_world_len
+    | O => m hello_world_length
     | S n' => m n'
     end.
 
@@ -155,16 +155,8 @@ Compute ascii_of_nat_option (hello_world_r5 1).
 Definition first (m : nat -> option nat) : option nat := m O.
 
 (* Get the last letter. *)
-Definition last (m : nat -> option nat) : option nat := m hello_world_len.
+Definition last (m : nat -> option nat) : option nat := m hello_world_length.
 
-
-(* A modified version update to update mapping of mapping. *)
-(*Definition update'' f (x : nat) (y : nat -> option nat) : nat -> nat -> option nat := 
-  fun (n:nat) => 
-    if Nat.eqb n x then y else f n.*)
-
-
-Compute minus_one hello_world_len.
 
 Fixpoint map_to_conjugacy (m : nat -> option nat) (l: nat) : nat -> nat -> option nat :=
   let f := fun _ _ => None in
@@ -174,7 +166,7 @@ Fixpoint map_to_conjugacy (m : nat -> option nat) (l: nat) : nat -> nat -> optio
   end.
 
 
-Example hello_world_matrix := map_to_conjugacy hello_world  (hello_world_len).
+Example hello_world_matrix := map_to_conjugacy hello_world (hello_world_length).
 
 Compute ascii_of_nat_option (hello_world_matrix 0 0).
 Compute ascii_of_nat_option (hello_world_matrix 1 0).
@@ -191,7 +183,7 @@ Fixpoint lasts (matrix : nat -> nat -> option nat) (r: nat) (c: nat) : nat -> op
   end.
 
 
-Example last_col := lasts hello_world_matrix (hello_world_len) (hello_world_len).
+Example last_col := lasts hello_world_matrix (hello_world_length) (hello_world_length).
 
 Compute ascii_of_nat_option (last_col 0).
 Compute ascii_of_nat_option (last_col 2).
