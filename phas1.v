@@ -19,14 +19,13 @@ Eval compute in f 5.
 Eval compute in f 10.
 
 
-Definition update f (x y:nat) : nat -> option nat  := 
+Definition update f (x: nat ) (y: option nat) : nat -> option nat  := 
 fun (n:nat) => 
-  if Nat.eqb n x then Some y else f n. 
+  if Nat.eqb n x then y else f n. 
   
-Definition f' := update f 0 2.
+Definition f' := update f 0 (Some 2).
 
 Compute f' 0.
-
 Compute f' 2.
 
 Definition b : nat -> nat -> option nat := 
@@ -69,14 +68,14 @@ Fixpoint string_to_list (s : string): list ascii :=
   end.
 
 (* Map ascii to nat in a list. *)
-Fixpoint ascii_to_nat_list (l : list ascii) : list nat :=
+Fixpoint ascii_to_nat_list (l : list ascii) : list (option nat) :=
   match l with
   | nil => nil
-  | h :: t => nat_of_ascii h :: ascii_to_nat_list t
+  | h :: t => Some (nat_of_ascii h) :: ascii_to_nat_list t
   end.
 
 (* Transform a nat list to a index to nat mapping, i.e. nat -> option nat. *)
-Fixpoint list_to_map (l : list nat) (m : nat) : nat -> option nat :=
+Fixpoint list_to_map (l : list (option nat)) (m : nat) : nat -> option nat :=
   let f := fun _ => None in
   match l with
   | nil => f
@@ -96,10 +95,13 @@ Definition ascii_of_nat_option (a : option nat) : option ascii :=
   end.
 
 (* Test "string_to_map". *)
-Definition hello_world := string_to_map """Hello world!""".
+Definition hello_world := string_to_map "Cat".
 
-Definition hello_world_len := length """Hello world!""".
+Definition hello_world_len := length "Cat".
 
+Compute hello_world_len.
+
+Compute ascii_of_nat_option (hello_world 0).
 Compute ascii_of_nat_option (hello_world 1).
 Compute ascii_of_nat_option (hello_world 2).
 Compute ascii_of_nat_option (hello_world 3).
@@ -115,6 +117,13 @@ Compute ascii_of_nat_option (hello_world 12).
 Compute ascii_of_nat_option (hello_world 13).
 Compute ascii_of_nat_option (hello_world 14).
 
+Definition minus_one x :=
+  match x with
+  | O => O
+  | S x' => x'
+  end.
+  
+  
 (* Following implementation relies on length of the string,
 which is hard to compute directly from the mapping,
 so the previously computed value used here (not good). *)
@@ -133,7 +142,7 @@ Example hello_world_r3 := right_shift hello_world_r2.
 Example hello_world_r4 := right_shift hello_world_r3.
 Example hello_world_r5 := right_shift hello_world_r4.
 
-Compute ascii_of_nat_option (hello_world_r1 1).
+Compute ascii_of_nat_option (hello_world_r1 0).
 Compute ascii_of_nat_option (hello_world_r2 1).
 Compute ascii_of_nat_option (hello_world_r3 1).
 Compute ascii_of_nat_option (hello_world_r4 1).
@@ -151,10 +160,66 @@ Definition update'' f (x : nat) (y : nat -> option nat) : nat -> nat -> option n
   fun (n:nat) => 
     if Nat.eqb n x then y else f n.
 
-Definition map_to_jugacy (m : nat -> option nat) : nat -> nat -> option nat :=
+
+Compute minus_one hello_world_len.
+
+Fixpoint map_to_conjugacy (m : nat -> option nat) (l: nat) : nat -> nat -> option nat :=
   let f := fun _ _ => None in
-  lef fix m_to_j 
   match l with
-  | O => f
-  | S l' => update'' f l (right_shift (f l') hello_world_len)
+  | O => update'' f O m
+  | S l' => update'' (map_to_conjugacy m l') l (right_shift ( (map_to_conjugacy m l')  l'))
   end.
+
+
+Example hello_world_matrix := map_to_conjugacy hello_world  (hello_world_len).
+
+Compute ascii_of_nat_option (hello_world_matrix 0 0).
+Compute ascii_of_nat_option (hello_world_matrix 1 0).
+Compute ascii_of_nat_option (hello_world_matrix 2 0).
+Compute ascii_of_nat_option (hello_world_matrix 3 0).
+Compute ascii_of_nat_option (hello_world_matrix 3 2).
+Compute ascii_of_nat_option (hello_world_matrix 3 3).
+
+Fixpoint lasts (matrix : nat -> nat -> option nat) (r: nat) (c: nat) : nat -> option nat :=
+  let f := fun _ => None in
+  match r with
+  | O => update f O (matrix O c)
+  | S r' => update (lasts matrix r' c) (r) (matrix r c)
+  end.
+
+
+Example last_col := lasts hello_world_matrix (hello_world_len) (hello_world_len).
+
+Compute ascii_of_nat_option (last_col 0).
+Compute ascii_of_nat_option (last_col 2).
+Compute ascii_of_nat_option (last_col 3).
+Compute ascii_of_nat_option (last_col 11).
+
+(* None has lowest rank. *)
+
+Definition cmp (A:Type) := A -> A -> Prop.
+
+Definition eqdec (A:Type) := forall x y:A, {x=y}+{x<>y}.
+
+Definition sorter {A:Type} (leq: cmp A) (sort: (nat -> A) -> (nat -> A)) (len: nat) : Prop :=
+  forall f n, S n < len -> leq (sort f n) (sort f (S n)).
+
+Fixpoint count {A:Type} (eq:eqdec A) (x:A) (f: nat -> A) (len: nat) :=
+  match len with
+  | O => O
+  | S m => if eq (f m) x then S (count eq x f m) else count eq x f m
+  end.
+
+Definition permuter {A:Type} (eq: eqdec A) (sort: (nat -> A) -> (nat -> A)) (len: nat) :=
+  forall f x, count eq x (sort f) len = count eq x f len.
+
+
+
+
+
+
+
+
+
+
+
