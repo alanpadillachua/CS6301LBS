@@ -26,29 +26,28 @@ Definition update {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A :=
 (** Transform a string to a list of ascii. **)
 Fixpoint string_to_list (s : string): list ascii := 
   match s with
-    | EmptyString => nil
-    | String h t => h :: string_to_list t
+  | EmptyString => nil
+  | String h t => h :: string_to_list t
   end.
 
 (** Map ascii to nat in a list. **)
 Fixpoint ascii_to_nat_list (l : list ascii) : list (option nat) :=
   match l with
-    | nil => nil
-    | h :: t => Some (nat_of_ascii h) :: ascii_to_nat_list t
+  | nil => nil
+  | h :: t => Some (nat_of_ascii h) :: ascii_to_nat_list t
   end.
 
-(** Transform a nat list to a index to nat mapping, i.e. nat -> option nat. **)
-Fixpoint list_to_map (l : list (option nat)) (m : nat) : nat -> option nat :=
+(** Transform a nat list to a index -> nat mapping, i.e. nat -> option nat. **)
+Fixpoint list_to_map (l : list (option nat)) (start_index : nat) : nat -> option nat :=
   let f := fun _ => None in
   match l with
   | nil => f
-  | h :: t => update (list_to_map t (S m)) m h
+  | h :: t => update (list_to_map t (S start_index)) start_index h
   end.
 
 (** Use function defined above, generate a index to nat mapping from given string. **)
 Definition string_to_map (word : string) : nat -> option nat :=
   list_to_map (ascii_to_nat_list (string_to_list word)) O.
-
 
 (** helper functions **)
 (* "option nat -> option ascii" using library function "ascii_of_nat : nat -> ascii". *)
@@ -63,6 +62,8 @@ Definition nat_of_ascii_option (a : option ascii) : option nat :=
   | None => None
   | Some a' => Some (nat_of_ascii a')
   end.
+
+(* Mirror theorem for "ascii_nat_embedding" with option. *)
 Theorem ascii_nat_embedding_option :
   forall a : option ascii, ascii_of_nat_option (nat_of_ascii_option a) = a.
 Proof.
@@ -77,7 +78,6 @@ Qed.
 Definition string_to_map' (word : string) : nat -> option nat :=
   fun n => nat_of_ascii_option (get n word).
 
-
 (** Test "string_to_map". **)
 Definition hello_world_str := "Hello World!".
 Definition cat_str := "Cat".
@@ -88,43 +88,59 @@ Definition hello_world_length := length hello_world_str.
 Definition cat := string_to_map cat_str.
 Definition cat_length := length cat_str.
 
-Compute ascii_of_nat_option (hello_world 0).
-Compute ascii_of_nat_option (hello_world 1).
-Compute ascii_of_nat_option (hello_world 2).
-Compute ascii_of_nat_option (hello_world 3).
-Compute ascii_of_nat_option (hello_world 4).
-Compute ascii_of_nat_option (hello_world 5).
-Compute ascii_of_nat_option (hello_world 6).
-Compute ascii_of_nat_option (hello_world 7).
-Compute ascii_of_nat_option (hello_world 8).
-Compute ascii_of_nat_option (hello_world 9).
-Compute ascii_of_nat_option (hello_world 10).
-Compute ascii_of_nat_option (hello_world 11).
-Compute ascii_of_nat_option (hello_world 12).
+(**
+Prove that if given "list_to_map" a different index, to get the same element,
+the parameter to the mapping should change the same difference.
+**)
+Lemma list_to_map_index_difference:
+  forall (l : list (option nat)) (m n : nat),
+    (list_to_map l m) n = (list_to_map l (S m)) (S n).
+Proof.
+  induction l; intros; simpl.
+  - reflexivity.
+  - unfold update. simpl. destruct (Nat.eqb n m).
+    + reflexivity.
+    + specialize (IHl (S m) n). exact IHl.
+Qed.
+
+(**
+Prove that if prepend a character to a string, to get the same character again,
+increase the index by 1.
+**)
+Lemma prepend_string_to_map: 
+  forall (s : string) (n : nat) (a : ascii),
+    string_to_map s n = string_to_map (String a s) (S n).
+Proof.
+  unfold string_to_map.
+  induction s; induction n; simpl; unfold update; simpl.
+  - reflexivity.
+  - reflexivity.
+  - reflexivity.
+  - rewrite list_to_map_index_difference. reflexivity.
+Qed.
 
 (** Prove the "string_to_map" create right mapping. **)
 Theorem String_to_Map:
   forall (s : string) (n : nat),
     ascii_of_nat_option (string_to_map s n) = get n s.
 Proof.
-  intros s.
-  induction s.
-  - intros. simpl. reflexivity.
-  - intros. simpl. induction n.
-    + simpl. rewrite -> ascii_nat_embedding. reflexivity.
-    + unfold string_to_map. simpl.
-Admitted.
+  induction s; intro n.
+  - simpl. reflexivity.
+  - destruct n; simpl.
+    + rewrite -> ascii_nat_embedding. reflexivity.
+    + rewrite <- prepend_string_to_map. specialize (IHs n). exact IHs.
+Qed.
 
+(** Prove the "string_to_map'" create right mapping, might be trivial. **)
 Theorem String_to_Map':
   forall (s : string) (n : nat),
     ascii_of_nat_option (string_to_map' s n) = get n s.
 Proof.
-  intros s.
-  induction s.
-  - intros. simpl. reflexivity.
-  - intros. simpl. induction n.
-    + simpl. rewrite -> ascii_nat_embedding. reflexivity.
-    + unfold string_to_map'. simpl. rewrite -> ascii_nat_embedding_option. reflexivity.
+  induction s; intros; simpl.
+  - reflexivity.
+  - induction n; unfold string_to_map'; simpl.
+    + rewrite -> ascii_nat_embedding. reflexivity.
+    + rewrite -> ascii_nat_embedding_option. reflexivity.
 Qed.
 
 (* Following implementation relies on length of the string,
