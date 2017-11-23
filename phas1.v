@@ -233,7 +233,7 @@ Abort.
 
 (* None has lowest rank in the implementation of cmp. *)
 
-(* *)
+(* Code from Dr. Hamlen. *)
 Definition cmp (A:Type) := A -> A -> Prop.
 
 Definition eqdec (A:Type) := forall x y:A, {x=y}+{x<>y}.
@@ -250,3 +250,14 @@ Fixpoint count {A:Type} (eq:eqdec A) (x:A) (f: nat -> A) (len: nat) :=
 Definition permuter {A:Type} (eq: eqdec A) (sort: (nat -> A) -> (nat -> A)) (len: nat) :=
   forall f x, count eq x (sort f) len = count eq x f len.
 
+
+(* Possible final theorem. *)
+Definition bwt (s : string) : string := s.
+
+Definition inv_bwt (s : string) : string := s.
+
+Theorem lossless : forall s : string, inv_bwt(bwt(s)) = s.
+Proof.
+  intros s.
+  reflexivity.
+Qed.
