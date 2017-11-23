@@ -173,16 +173,20 @@ Definition first (m : nat -> option nat) : option nat := m O.
 (* Get the last letter. *)
 Definition last (m : nat -> option nat) : option nat := m hello_world_length.
 
+(** Generate right-shift permutation matrix of the string mapping. **)
+Definition map_to_conjugacy (length: nat) (m : nat -> option nat) : nat -> nat -> option nat :=
+  let f := fun _ _ => None in (* Define a base mapping. *)
+    let length' := length in (* Use a constant to keep the length across recursion. *)
+      let fix map_to_conjugacy' (m : nat -> option nat) (l: nat) := (* Define the actual recursive function, induction on l. *)
+        match l with
+        | O => update f O m
+        | S l' => let l'_conjugacy := map_to_conjugacy' m l' in
+                  update l'_conjugacy l (right_shift (l'_conjugacy l') length')
+        end in
+      map_to_conjugacy' m length.
 
-Fixpoint map_to_conjugacy (m : nat -> option nat) (l: nat) : nat -> nat -> option nat :=
-  let f := fun _ _ => None in
-  match l with
-  | O => update f O m
-  | S l' => update (map_to_conjugacy m l') l (right_shift ( (map_to_conjugacy m l')  l'))
-  end.
 
-
-Example hello_world_matrix := map_to_conjugacy hello_world (hello_world_length).
+Example hello_world_matrix := map_to_conjugacy (hello_world_length) hello_world.
 
 Compute ascii_of_nat_option (hello_world_matrix 0 0).
 Compute ascii_of_nat_option (hello_world_matrix 1 0).
@@ -191,23 +195,45 @@ Compute ascii_of_nat_option (hello_world_matrix 3 0).
 Compute ascii_of_nat_option (hello_world_matrix 3 2).
 Compute ascii_of_nat_option (hello_world_matrix 3 3).
 
-Fixpoint lasts (matrix : nat -> nat -> option nat) (r: nat) (c: nat) : nat -> option nat :=
+(** Extract the last column from the matrix. **)
+(* Originally both "r" and "c" were passed as parameter, and induction on r.
+ * Now only length is passed, and internally a constant "last_col_index" was kept,
+ * and induction directly on length. *)
+Definition lasts (length : nat) (matrix : nat -> nat -> option nat) : nat -> option nat :=
   let f := fun _ => None in
-  match r with
-  | O => update f O (matrix O c)
-  | S r' => update (lasts matrix r' c) (r) (matrix r c)
-  end.
+    let last_col_index := length in
+      let fix lasts' (matrix : nat -> nat -> option nat) (r : nat) :=
+        match r with
+        | O => update f O (matrix O last_col_index)
+        | S r' => update (lasts' matrix r') r (matrix r last_col_index)
+        end in
+      lasts' matrix length.
 
-
-Example last_col := lasts hello_world_matrix (hello_world_length) (hello_world_length).
+Example last_col := lasts (hello_world_length) hello_world_matrix.
 
 Compute ascii_of_nat_option (last_col 0).
+Compute ascii_of_nat_option (last_col 1).
 Compute ascii_of_nat_option (last_col 2).
 Compute ascii_of_nat_option (last_col 3).
 Compute ascii_of_nat_option (last_col 11).
 
-(* None has lowest rank. *)
+(** Inductively define whether two mappings are reverse of each other at lenght "n". **)
+Inductive reverse_mapping (n : nat) (f1 f2 : nat -> option nat) : Prop :=
+  ReverseMapping : forall (n1 n2: nat), n1 + n2 = n -> f1 n1 = f2 n2 -> reverse_mapping n f1 f2.
 
+(** Prove that the last column of the right-shift permutation matrix is the reverse of the original string mapping. **)
+Theorem last_col_reverse:
+  forall (s : string) (l : nat) (m : nat -> option nat),
+    l = length s -> m = string_to_map s -> reverse_mapping l m (lasts l (map_to_conjugacy l m)).
+Proof.
+  intros.
+  unfold map_to_conjugacy.
+  unfold lasts.
+Abort.
+
+(* None has lowest rank in the implementation of cmp. *)
+
+(* *)
 Definition cmp (A:Type) := A -> A -> Prop.
 
 Definition eqdec (A:Type) := forall x y:A, {x=y}+{x<>y}.
@@ -223,14 +249,4 @@ Fixpoint count {A:Type} (eq:eqdec A) (x:A) (f: nat -> A) (len: nat) :=
 
 Definition permuter {A:Type} (eq: eqdec A) (sort: (nat -> A) -> (nat -> A)) (len: nat) :=
   forall f x, count eq x (sort f) len = count eq x f len.
-
-
-
-
-
-
-
-
-
-
 
