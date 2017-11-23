@@ -122,7 +122,7 @@ Qed.
 (** Prove the "string_to_map" create right mapping. **)
 Theorem String_to_Map:
   forall (s : string) (n : nat),
-    ascii_of_nat_option (string_to_map s n) = get n s.
+    ascii_of_nat_option (string_to_map s n) = String.get n s.
 Proof.
   induction s; intro n.
   - simpl. reflexivity.
@@ -134,7 +134,7 @@ Qed.
 (** Prove the "string_to_map'" create right mapping, might be trivial. **)
 Theorem String_to_Map':
   forall (s : string) (n : nat),
-    ascii_of_nat_option (string_to_map' s n) = get n s.
+    ascii_of_nat_option (string_to_map' s n) = String.get n s.
 Proof.
   induction s; intros; simpl.
   - reflexivity.
@@ -148,18 +148,18 @@ which is hard to compute directly from the mapping,
 so the previously computed value used here (not good). *)
 
 (* Right-shift a mapping by one and return a new mapping. *)
-Definition right_shift (m : nat -> option nat) : nat -> option nat :=
+Definition right_shift (m : nat -> option nat) (l : nat) : nat -> option nat :=
   fun n =>
     match n with
-    | O => m hello_world_length
+    | O => m l
     | S n' => m n'
     end.
 
-Example hello_world_r1 := right_shift hello_world.
-Example hello_world_r2 := right_shift hello_world_r1.
-Example hello_world_r3 := right_shift hello_world_r2.
-Example hello_world_r4 := right_shift hello_world_r3.
-Example hello_world_r5 := right_shift hello_world_r4.
+Example hello_world_r1 := right_shift hello_world hello_world_length.
+Example hello_world_r2 := right_shift hello_world_r1 hello_world_length.
+Example hello_world_r3 := right_shift hello_world_r2 hello_world_length.
+Example hello_world_r4 := right_shift hello_world_r3 hello_world_length.
+Example hello_world_r5 := right_shift hello_world_r4 hello_world_length.
 
 Compute ascii_of_nat_option (hello_world_r1 0).
 Compute ascii_of_nat_option (hello_world_r2 1).
