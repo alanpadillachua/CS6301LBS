@@ -264,6 +264,9 @@ Eval compute in bwt' hello_world_str (fun x => x).
 "ello World!H"
 *)
 
+(*  Currently we used [nat] represent a letter to simplify the Sorting part. 
+    But if we define a [TotalOrder] on [ascii], the conversion would be unnecessary.
+    Or we can assume the sort function sort on ascii directly. *)
 
 (* None has lowest rank in the implementation of cmp. *)
 
