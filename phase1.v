@@ -268,10 +268,12 @@ Eval compute in bwt' hello_world_str (fun x => x).
 Definition zip {A : Set} (map : nat -> A) : nat -> prod A nat :=
   fun n => pair (map n) n.
 
-Definition cmp (A:Type) := A -> A -> bool.
+Definition eqdec (A:Type) := forall x y:A, {x=y}+{x<>y}.
 
-Fixpoint indexOf {A : Type} (eq : cmp A) (map : nat -> A) (len : nat) (target : A) : option nat :=
-  let fix indexOf' {A : Type} (eq : cmp A) (map : nat -> A) (target : A) (i : nat) : option nat :=
+Definition cmp (A:Type) := A -> A -> Prop.
+
+Fixpoint indexOf {A : Type} (eq : eqdec A) (map : nat -> A) (len : nat) (target : A) : option nat :=
+  let fix indexOf' {A : Type} (eq : eqdec A) (map : nat -> A) (target : A) (i : nat) : option nat :=
     match i with
     | O => None
     | S i' => if eq (map i) target then Some i else indexOf' eq map target (i')
@@ -301,10 +303,7 @@ Definition standard_permutation :=
 
 (* None has lowest rank in the implementation of cmp. *)
 
-(* Code from Dr. Hamlen. *)
-Definition cmp (A:Type) := A -> A -> Prop.
-
-Definition eqdec (A:Type) := forall x y:A, {x=y}+{x<>y}.
+(* Sort function set up. *)
 
 Definition sorter {A:Type} (leq: cmp A) (sort: (nat -> A) -> (nat -> A)) (len: nat) : Prop :=
   forall f n, S n < len -> leq (sort f n) (sort f (S n)).
