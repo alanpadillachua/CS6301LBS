@@ -365,6 +365,6 @@ Fixpoint list_to_string (l : list (option ascii)) : string :=
   | _ => EmptyString
   end.
 
-Definition bwt (s : string) : string := s.
+Definition bwt' (s : string) : string := s.
 
 Definition inv_bwt (s : string) : string := s.
