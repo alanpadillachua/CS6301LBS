@@ -8,6 +8,7 @@
 
 Require Import List.
 Require Import Ascii String.
+Require Import Datatypes.
 
 Local Open Scope char_scope.
 Local Open Scope string_scope.
@@ -81,10 +82,10 @@ Definition hello_world_str := "Hello World!".
 Definition cat_str := "Cat".
 
 Definition hello_world := string_to_map hello_world_str.
-Definition hello_world_length := length hello_world_str.
+Definition hello_world_length := String.length hello_world_str.
 
 Definition cat := string_to_map cat_str.
-Definition cat_length := length cat_str.
+Definition cat_length := String.length cat_str.
 
 (** Prove that if given "list_to_map" a different index, to get the same element,
     the parameter to the mapping should change the same difference. *)
@@ -232,7 +233,7 @@ Inductive reverse_mapping (n : nat) (f1 f2 : nat -> option nat) : Prop :=
 (** Prove that the last column of the right-shift permutation matrix is the reverse of the original string mapping. **)
 Theorem last_col_reverse:
   forall (s : string) (l : nat) (m : nat -> option nat),
-    l = length s -> m = string_to_map s -> reverse_mapping l m (lasts l (map_to_conjugacy l m)).
+    l = String.length s -> m = string_to_map s -> reverse_mapping l m (lasts l (map_to_conjugacy l m)).
 Proof.
   intros.
   unfold map_to_conjugacy.
@@ -262,6 +263,36 @@ Eval compute in bwt' hello_world_str (fun x => x).
 "lo World!Hel"
 "llo World!He"
 "ello World!H"
+*)
+
+Definition zip {A : Set} (map : nat -> A) : nat -> prod A nat :=
+  fun n => pair (map n) n.
+
+Definition cmp (A:Type) := A -> A -> bool.
+
+Fixpoint indexOf {A : Type} (eq : cmp A) (map : nat -> A) (len : nat) (target : A) : option nat :=
+  let fix indexOf' {A : Type} (eq : cmp A) (map : nat -> A) (target : A) (i : nat) : option nat :=
+    match i with
+    | O => None
+    | S i' => if eq (map i) target then Some i else indexOf' eq map target (i')
+    end in
+  indexOf' eq map target len.
+
+(*
+Definition standard_permutation :=
+  let fix standard_permutation' (start_index : nat)
+                                (f : option nat -> option nat)
+                                (A : Type)
+                                (eq : cmp (@prod A nat))
+                                (zipped_bwt sorted_bwt : nat -> @prod A nat) :
+                                option nat -> option nat :=
+    match sorted_bwt with
+    | nil => f
+    | h :: t => standard_permutation' (S start_index) 
+                                      (update OptionNatOrder.eqb f (Some start_index) (indexOf eq zipped_bwt h))
+                                      A eq zipped_bwt t
+    end in
+  standard_permutation' O (fun (_: option nat) => None).
 *)
 
 (*  Currently we used [nat] represent a letter to simplify the Sorting part. 
