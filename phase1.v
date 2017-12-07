@@ -8,6 +8,7 @@
 
 Require Import List.
 Require Import Ascii String.
+Require Import Arith.
 
 Local Open Scope char_scope.
 Local Open Scope string_scope.
@@ -18,8 +19,16 @@ Open Scope bool_scope.
 (* Note: The definition might be generalized again to update mapping "A -> B",
  * but it would require to implement or pass as input an alternative comparing
  * function other than "Nat.eqb". *)
+
+Fixpoint Nat_eqb (x:nat) (y:nat) : bool :=
+match x with
+|0 => match y with 0 => true |_ => false end
+|S l => match y with S n => (Nat_eqb l n) | 0 => false end
+end.
+    
+
 Definition update {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A := 
-  fun (n : nat) => if Nat.eqb n x then y else f n.
+  fun (n : nat) => if Nat_eqb n x then y else f n.
 
 (** Transform a string to a list of ascii. *)
 Fixpoint string_to_list (s : string): list ascii := 
@@ -94,7 +103,7 @@ Lemma list_to_map_index_difference:
 Proof.
   induction l; intros; simpl.
   - reflexivity.
-  - unfold update. simpl. destruct (Nat.eqb n m).
+  - unfold update. simpl. destruct (Nat_eqb n m).
     + reflexivity.
     + specialize (IHl (S m) n). exact IHl.
 Qed.
@@ -170,12 +179,11 @@ Definition last (m : nat -> option nat) : option nat := m hello_world_length.
 (** Generate right-shift permutation matrix of the string mapping. **)
 Definition map_to_conjugacy (length: nat) (m : nat -> option nat) : nat -> nat -> option nat :=
   let f := fun _ _ => None in (* Define a base mapping. *)
-  let length' := length in (* Use a constant to keep the length across recursion. *)
   let fix map_to_conjugacy' (m : nat -> option nat) (l: nat) := (* Define the actual recursive function, induction on l. *)
     match l with
     | O => update f O m
     | S l' => let l'_conjugacy := map_to_conjugacy' m l' in
-              update l'_conjugacy l (right_shift (l'_conjugacy l') length')
+              update l'_conjugacy l (right_shift (l'_conjugacy l') length)
     end in
   map_to_conjugacy' m length.
 
@@ -303,3 +311,47 @@ Proof.
   intros s.
   reflexivity.
 Qed.
+
+
+(* Return the character at position i of string m *)
+Definition lambda (m:nat -> option nat) (i:nat) := m i.
+
+(* Returns the position of an alphabet 'char' in string 'm' of length 'length' *)
+Fixpoint get_pos (eq:eqdec (option nat)) (m:nat -> option nat) (length:nat) (char: option nat) : nat :=
+match length with
+|0 => if (eq (m 0) char) then 0 else (S length)
+|S l => if (eq (m length) char) then length else (get_pos eq m l char)
+end. 
+
+(* Returns a 1-to-1 mapping π as described in the White paper *) 
+Definition pi (eq:eqdec (option nat)) (length:nat) (sort: (nat -> (option nat)) -> (nat -> (option nat))) (m: nat -> option nat) : (nat -> nat):=
+fun (x:nat) => get_pos eq (sort m) length (m x).
+
+
+Definition context (k:nat) (m: nat -> (option nat)) : (nat -> (option nat)) :=
+fun (x:nat) => if (leb x k) then (m x) else None.
+
+Definition update' {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A := 
+  fun (n : nat) => if Nat_eqb n x then y else f n.
+
+(** Transform a nat list to a index -> nat mapping, i.e. nat -> option nat. *)
+Fixpoint list_to_map' (l : list (option nat)) (start_index : nat) : nat -> option nat :=
+  let f := fun _ => None in
+  match l with
+  | nil => f
+  | h :: t => update (list_to_map t (S start_index)) start_index h
+  end.
+
+
+Fixpoint inverse_bwt (eq:eqdec (option nat)) (tot_length:nat) (k:nat) (m:nat -> (option nat)) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> nat) :=
+let p' := (pi eq k sort m) in
+let f := fun _ => (S tot_length) in
+match k with
+|0 => update f 0 (p' 0)
+|S l => let rec :=  (inverse_bwt eq tot_length l m sort) in 
+       update rec k (p'(rec l)) (*  (lambda m ((pi eq l sort rec) k))   *)
+end.
+
+
+
+
