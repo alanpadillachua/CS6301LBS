@@ -6,7 +6,7 @@
 (*         *              Paul Parrot, Sourav Dasgupta                *)
 (**********************************************************************)
 
-Require Import List.
+Require Import List Nat Arith.
 Require Import Ascii String.
 Require Import Arith.
 
@@ -236,6 +236,10 @@ Eval compute in map_to_string hello_world_length last_col.
 (** Inductively define whether two mappings are reverse of each other at lenght "n". **)
 Inductive reverse_mapping (n : nat) (f1 f2 : nat -> option nat) : Prop :=
   ReverseMapping : forall (n1 n2: nat), n1 + n2 = n -> f1 n1 = f2 n2 -> reverse_mapping n f1 f2.
+  
+
+Definition same_mapping (f1 f2 : nat -> option nat) : Prop :=
+  forall (n : nat), f1 n = f2 n.
 
 (** Prove that the last column of the right-shift permutation matrix is the reverse of the original string mapping. **)
 Theorem last_col_reverse:
@@ -323,7 +327,7 @@ match length with
 |S l => if (eq (m length) char) then length else (get_pos eq m l char)
 end. 
 
-(* Returns a 1-to-1 mapping π as described in the White paper *) 
+(* Returns a 1-to-1 mapping \u03c0 as described in the White paper *) 
 Definition pi (eq:eqdec (option nat)) (length:nat) (sort: (nat -> (option nat)) -> (nat -> (option nat))) (m: nat -> option nat) : (nat -> nat):=
 fun (x:nat) => get_pos eq (sort m) length (m x).
 
@@ -343,15 +347,26 @@ Fixpoint list_to_map' (l : list (option nat)) (start_index : nat) : nat -> optio
   end.
 
 
-Fixpoint inverse_bwt (eq:eqdec (option nat)) (tot_length:nat) (k:nat) (m:nat -> (option nat)) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> nat) :=
+Fixpoint inverse_bwt' (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m:nat -> (option nat)) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> nat) :=
 let p' := (pi eq k sort m) in
 let f := fun _ => (S tot_length) in
 match k with
-|0 => update f 0 (p' 0)
-|S l => let rec :=  (inverse_bwt eq tot_length l m sort) in 
+|O => update f 0 (p' i)
+|S l => let rec :=  (inverse_bwt' eq tot_length i l m sort) in 
        update rec k (p'(rec l)) (*  (lambda m ((pi eq l sort rec) k))   *)
 end.
 
+Fixpoint inverse_bwt (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m:nat -> (option nat)) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> option nat) :=
+fun n => lambda m (inverse_bwt' eq tot_length i k m sort n).
 
+Definition sorted_matrix (matrix : nat -> nat -> option nat) (k : nat) : Prop := True.
 
+Lemma matrix (m : nat -> nat -> option nat) (length : nat) (eq:eqdec (option nat))  (sort: (nat -> (option nat)) -> (nat -> (option nat))) :
+  forall (m : nat -> nat -> option nat) (k i: nat) ,
+    i <= length ->
+    sorted_matrix m k ->
+    same_mapping (context k (m i)) (inverse_bwt eq length i k (m i) sort).
+Proof.
+  intros.
+Admitted.
 
