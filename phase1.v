@@ -14,6 +14,8 @@ Local Open Scope char_scope.
 Local Open Scope string_scope.
 Open Scope bool_scope.
 
+Definition str := nat -> option nat.
+Definition str_matrix := nat -> str.
 
 (** A generic "update" function for mapping "nat -> A". *)
 (* Note: The definition might be generalized again to update mapping "A -> B",
@@ -331,6 +333,9 @@ end.
 Definition pi (eq:eqdec (option nat)) (length:nat) (sort: (nat -> (option nat)) -> (nat -> (option nat))) (m: nat -> option nat) : (nat -> nat):=
 fun (x:nat) => get_pos eq (sort m) length (m x).
 
+(* Introduce sorted string as assumption, not sort it inside. *)
+Definition pi' (eq:eqdec (option nat)) (length:nat) (m sorted_m: nat -> option nat) : (nat -> nat):=
+fun (x:nat) => get_pos eq (sorted_m) length (m x).
 
 Definition context (k:nat) (m: nat -> (option nat)) : (nat -> (option nat)) :=
 fun (x:nat) => if (leb x k) then (m x) else None.
@@ -346,7 +351,6 @@ Fixpoint list_to_map' (l : list (option nat)) (start_index : nat) : nat -> optio
   | h :: t => update (list_to_map t (S start_index)) start_index h
   end.
 
-
 Fixpoint inverse_bwt' (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m:nat -> (option nat)) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> nat) :=
 let p' := (pi eq k sort m) in
 let f := fun _ => (S tot_length) in
@@ -356,10 +360,26 @@ match k with
        update rec k (p'(rec l)) (*  (lambda m ((pi eq l sort rec) k))   *)
 end.
 
-Fixpoint inverse_bwt (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m:nat -> (option nat)) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> option nat) :=
+(* Use [pi'] instead of [pi]. *)
+Fixpoint inverse_bwt'' (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m sorted_m :nat -> (option nat)) : (nat-> nat) :=
+let p' := (pi' eq k m sorted_m) in
+let f := fun _ => (S tot_length) in
+match k with
+|O => update f 0 (p' i)
+|S l => let rec :=  (inverse_bwt'' eq tot_length i l m sorted_m) in 
+       update rec k (p'(rec l)) (*  (lambda m ((pi eq l sort rec) k))   *)
+end.
+
+
+Fixpoint inverse_bwt (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m: str) (sort: (nat -> (option nat)) -> (nat -> (option nat))): (nat-> option nat) :=
 fun n => lambda m (inverse_bwt' eq tot_length i k m sort n).
 
-Definition sorted_matrix (matrix : nat -> nat -> option nat) (k : nat) : Prop := True.
+
+Fixpoint inverse_bwt_s (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m sorted_m: str) :=
+fun n => lambda m (inverse_bwt'' eq tot_length i k m sorted_m n).
+
+Definition sorted_m (m m_sorted: str) (k : nat) : Prop := True.
+Definition sorted_matrix (matrix : str_matrix) (k : nat) : Prop := True.
 
 Lemma matrix (m : nat -> nat -> option nat) (length : nat) (eq:eqdec (option nat))  (sort: (nat -> (option nat)) -> (nat -> (option nat))) :
   forall (m : nat -> nat -> option nat) (k i: nat) ,
@@ -369,4 +389,16 @@ Lemma matrix (m : nat -> nat -> option nat) (length : nat) (eq:eqdec (option nat
 Proof.
   intros.
 Admitted.
+
+Lemma matrix' (m: str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) :
+  forall (k i: nat) ,
+    i <= length ->
+    sorted_matrix m k ->
+    same_mapping L (lasts length m) ->
+    sorted_m L L_sorted length ->
+    same_mapping (context k (m i)) (inverse_bwt_s eq length i k L L_sorted).
+Proof.
+  intros.
+Admitted.
+
 
