@@ -334,11 +334,11 @@ Definition pi (eq:eqdec (option nat)) (length:nat) (sort: (nat -> (option nat)) 
 fun (x:nat) => get_pos eq (sort m) length (m x).
 
 (* Introduce sorted string as assumption, not sort it inside. *)
-Definition pi' (eq:eqdec (option nat)) (length:nat) (m sorted_m: nat -> option nat) : (nat -> nat):=
+Definition pi' (eq:eqdec (option nat)) (length:nat) (m sorted_m: str) : (nat -> nat):=
 fun (x:nat) => get_pos eq (sorted_m) length (m x).
 
 Definition context (k:nat) (m: nat -> (option nat)) : (nat -> (option nat)) :=
-fun (x:nat) => if (leb x k) then (m x) else None.
+fun (x:nat) => if (x <? k) then (m x) else None.
 
 Definition update' {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A := 
   fun (n : nat) => if Nat_eqb n x then y else f n.
@@ -365,7 +365,7 @@ Fixpoint inverse_bwt'' (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m sor
 let p' := (pi' eq k m sorted_m) in
 let f := fun _ => (S tot_length) in
 match k with
-|O => update f 0 (p' i)
+|O => f
 |S l => let rec :=  (inverse_bwt'' eq tot_length i l m sorted_m) in 
        update rec k (p'(rec l)) (*  (lambda m ((pi eq l sort rec) k))   *)
 end.
@@ -375,7 +375,7 @@ Fixpoint inverse_bwt (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m: str)
 fun n => lambda m (inverse_bwt' eq tot_length i k m sort n).
 
 
-Fixpoint inverse_bwt_s (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m sorted_m: str) :=
+Definition inverse_bwt_s (eq:eqdec (option nat)) (tot_length:nat) (i k:nat) (m sorted_m: str) :=
 fun n => lambda m (inverse_bwt'' eq tot_length i k m sorted_m n).
 
 Definition sorted_m (m m_sorted: str) (k : nat) : Prop := True.
@@ -390,15 +390,74 @@ Proof.
   intros.
 Admitted.
 
-Lemma matrix' (m: str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) :
+Definition length_mapping (s : str) (length : nat): Prop :=
+  forall l, l > length -> s l = None.
+
+Definition prepend (s : str) (c : option nat) : str :=
+  fun n =>
+    match n with
+    | O => c
+    | S n' => s n'
+    end.
+
+Definition concat (s1 s2: str) (l1 l2 : nat) : str :=
+  fun n => if leb n l1 then s1 n else s2 (n - l1).
+
+Lemma context_k (w: str_matrix) (L : str) (length : nat) :
+  forall (k i : nat) ,
+    k <= length ->
+    i <= length ->
+    same_mapping (context (S k) (right_shift (w i) length)) (prepend (context k (w i)) (lambda L i)).
+Proof.
+Admitted.
+
+Definition right_shift_matrix (w: str_matrix) (length : nat) : str_matrix :=
+  fun n => right_shift (w n) length.
+
+Lemma sort_matrix (w: str_matrix) (length : nat) (k : nat) (sort : nat -> str_matrix -> str_matrix) (pi : nat -> nat) :
+  sorted_matrix w k ->
+  forall (n : nat), same_mapping (sort (S k) (right_shift_matrix w length) n) (right_shift (w (pi n)) length).
+Proof.
+Admitted.
+
+Lemma matrix' (w: str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat))
+              (sort : str_matrix -> str_matrix) :
   forall (k i: nat) ,
     i <= length ->
-    sorted_matrix m k ->
-    same_mapping L (lasts length m) ->
+    length_mapping L length ->
+    length_mapping L_sorted length ->
+    sorted_matrix w k ->
+    same_mapping L (lasts length w) ->
     sorted_m L L_sorted length ->
-    same_mapping (context k (m i)) (inverse_bwt_s eq length i k L L_sorted).
+    same_mapping (context k (w i)) (inverse_bwt_s eq length i k L L_sorted).
 Proof.
+  induction k.
+  intros. 
+  unfold same_mapping.
+  
+  unfold context.
+  unfold inverse_bwt_s.
+  intro n. destruct n; simpl.
+  unfold lambda. rewrite H0. reflexivity. auto.
+  unfold lambda. rewrite H0. reflexivity. auto.
+  
   intros.
+  apply IHk in H.
+  
+  
 Admitted.
+
+
+Lemma matrix'' (w: str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat))
+              (sort : str_matrix -> str_matrix) (k : nat) :
+  forall (i: nat) ,
+    i <= length ->
+    length_mapping L length ->
+    length_mapping L_sorted length ->
+    sorted_matrix w k ->
+    same_mapping L (lasts length w) ->
+    sorted_m L L_sorted length ->
+    forall x : nat, x <= k -> same_mapping (context x (w i)) (inverse_bwt_s eq length i x L L_sorted).
+Proof.
 
 
