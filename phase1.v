@@ -14,23 +14,27 @@ Local Open Scope char_scope.
 Local Open Scope string_scope.
 Open Scope bool_scope.
 
-Definition str := nat -> option nat.
+(** Define type for [char], [str], [str_matrix]. *)
+Definition char := option nat.
+Definition str := nat -> char.
 Definition str_matrix := nat -> str.
+
+(*
+Fixpoint Nat_eqb (x:nat) (y:nat) : bool :=
+match x with
+|0 => match y with 0 => true |_ => false end
+|S l => match y with S n => (Nat_eqb l n) | 0 => false end
+end.
+*)
 
 (** A generic "update" function for mapping "nat -> A". *)
 (* Note: The definition might be generalized again to update mapping "A -> B",
  * but it would require to implement or pass as input an alternative comparing
  * function other than "Nat.eqb". *)
 
-Fixpoint Nat_eqb (x:nat) (y:nat) : bool :=
-match x with
-|0 => match y with 0 => true |_ => false end
-|S l => match y with S n => (Nat_eqb l n) | 0 => false end
-end.
-    
 
 Definition update {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A := 
-  fun (n : nat) => if Nat_eqb n x then y else f n.
+  fun (n : nat) => if Nat.eq_dec n x then y else f n.
 
 (** Transform a string to a list of ascii. *)
 Fixpoint string_to_list (s : string): list ascii := 
@@ -40,33 +44,32 @@ Fixpoint string_to_list (s : string): list ascii :=
   end.
 
 (** Map ascii to nat in a list. *)
-Fixpoint ascii_to_nat_list (l : list ascii) : list (option nat) :=
+Fixpoint ascii_to_nat_list (l : list ascii) : list char :=
   match l with
   | nil => nil
   | h :: t => Some (nat_of_ascii h) :: ascii_to_nat_list t
   end.
 
 (** Transform a nat list to a index -> nat mapping, i.e. nat -> option nat. *)
-Fixpoint list_to_map (l : list (option nat)) (start_index : nat) : nat -> option nat :=
-  let f := fun _ => None in
+Fixpoint list_to_map (l : list char) (start_index : nat) : str :=
   match l with
-  | nil => f
+  | nil => fun _ => None
   | h :: t => update (list_to_map t (S start_index)) start_index h
   end.
 
 (** Use function defined above, generate a index to nat mapping from given string. *)
-Definition string_to_map (word : string) : nat -> option nat :=
+Definition string_to_map (word : string) : str :=
   list_to_map (ascii_to_nat_list (string_to_list word)) O.
 
 (** helper functions **)
 (* "option_ascii_of_nat_option : option nat -> option ascii" using library function "ascii_of_nat : nat -> ascii". *)
-Definition option_ascii_of_nat_option (n : option nat) : option ascii :=
+Definition option_ascii_of_nat_option (n : char) : option ascii :=
   match n with
   | None => None
   | Some n' => Some (ascii_of_nat n')
   end.
 (* "option_nat_of_ascii_option : option ascii -> option nat" using library function "nat_of_ascii : ascii -> nat". *)
-Definition option_nat_of_ascii_option (a : option ascii) : option nat :=
+Definition option_nat_of_ascii_option (a : option ascii) : char :=
   match a with
   | None => None
   | Some a' => Some (nat_of_ascii a')
@@ -74,7 +77,7 @@ Definition option_nat_of_ascii_option (a : option ascii) : option nat :=
 
 (*  Alternative definition of "string_to_map", which use library function
     "get : nat -> string -> option ascii" directly. *)
-Definition string_to_map' (word : string) : nat -> option nat :=
+Definition string_to_map' (word : string) : str :=
   fun n => option_nat_of_ascii_option (get n word).
 
 (*  Mirror theorem for "ascii_nat_embedding" with option. *)
@@ -100,12 +103,12 @@ Definition cat_length := length cat_str.
 (** Prove that if given "list_to_map" a different index, to get the same element,
     the parameter to the mapping should change the same difference. *)
 Lemma list_to_map_index_difference:
-  forall (l : list (option nat)) (m n : nat),
+  forall (l : list char) (m n : nat),
     (list_to_map l m) n = (list_to_map l (S m)) (S n).
 Proof.
   induction l; intros; simpl.
   - reflexivity.
-  - unfold update. simpl. destruct (Nat_eqb n m).
+  - unfold update. simpl. destruct (Nat.eq_dec n m).
     + reflexivity.
     + specialize (IHl (S m) n). exact IHl.
 Qed.
@@ -172,25 +175,34 @@ Compute option_ascii_of_nat_option (hello_world_r3 1).
 Compute option_ascii_of_nat_option (hello_world_r4 1).
 Compute option_ascii_of_nat_option (hello_world_r5 1).
 
-(* Get the first letter. *)
-Definition first (m : nat -> option nat) : option nat := m O.
 
-(* Get the last letter. *)
-Definition last (m : nat -> option nat) : option nat := m hello_world_length.
+(** String start with index 0. *)
+
+(** Get the first letter. *)
+Definition first (m : str) : char := m O.
+
+(** Get the last letter. *)
+Definition last (m : str) (length : nat) : char :=
+  match length with
+  | O => None
+  | S length' => m length'
+  end.
+
+Eval compute in last hello_world hello_world_length.
 
 (** Generate right-shift permutation matrix of the string mapping. **)
-Definition map_to_conjugacy (length: nat) (m : nat -> option nat) : nat -> nat -> option nat :=
-  let f := fun _ _ => None in (* Define a base mapping. *)
-  let fix map_to_conjugacy' (m : nat -> option nat) (l: nat) := (* Define the actual recursive function, induction on l. *)
+(*  Helper recursion definition, which keeps a constant length through recursion. *)
+Fixpoint map_to_conjugacy' (m : str) (l length: nat) := (* Define the actual recursive function, induction on l. *)
     match l with
-    | O => update f O m
-    | S l' => let l'_conjugacy := map_to_conjugacy' m l' in
+    | O => update (fun _ _ => None) O m
+    | S l' => let l'_conjugacy := map_to_conjugacy' m l' length in
               update l'_conjugacy l (right_shift (l'_conjugacy l') length)
-    end in
-  map_to_conjugacy' m length.
+    end.
 
+Definition map_to_conjugacy (m : str) (length: nat) : str_matrix :=
+  map_to_conjugacy' m length length.
 
-Example hello_world_matrix := map_to_conjugacy (hello_world_length) hello_world.
+Example hello_world_matrix := map_to_conjugacy hello_world hello_world_length.
 
 Compute option_ascii_of_nat_option (hello_world_matrix 0 0).
 Compute option_ascii_of_nat_option (hello_world_matrix 1 0).
@@ -203,17 +215,17 @@ Compute option_ascii_of_nat_option (hello_world_matrix 3 3).
 (* Originally both "r" and "c" were passed as parameter, and induction on r.
  * Now only length is passed, and internally a constant "last_col_index" was kept,
  * and induction directly on length. *)
-Definition lasts (length : nat) (matrix : nat -> nat -> option nat) : nat -> option nat :=
-  let f := fun _ => None in
-  let last_col_index := length in
-  let fix lasts' (matrix : nat -> nat -> option nat) (r : nat) :=
-    match r with
-    | O => update f O (matrix O last_col_index)
-    | S r' => update (lasts' matrix r') r (matrix r last_col_index)
-    end in
-  lasts' matrix length.
 
-Example last_col := lasts (hello_world_length) hello_world_matrix.
+Fixpoint lasts' (matrix : str_matrix) (row length : nat) :=
+  match row with
+  | O => update (fun _ => None) O (matrix O length)
+  | S row' => update (lasts' matrix row' length) row (matrix row length)
+  end.
+
+Definition lasts (matrix : str_matrix) (length : nat) : str :=
+  lasts' matrix length length.
+
+Example last_col := lasts hello_world_matrix hello_world_length.
 
 Compute option_ascii_of_nat_option (last_col 0).
 Compute option_ascii_of_nat_option (last_col 1).
@@ -221,32 +233,32 @@ Compute option_ascii_of_nat_option (last_col 2).
 Compute option_ascii_of_nat_option (last_col 3).
 Compute option_ascii_of_nat_option (last_col 11).
 
-Definition map_to_string (len : nat) (map : nat -> option nat) : string :=
-  let total_len := len in
-  let fix map_to_string (len : nat) (i : nat) (map : nat -> option nat) : string :=
-    match len with
-    | O => EmptyString
-    | S len' => match option_ascii_of_nat_option (map i) with
-                | Some a => String a (map_to_string len' (S i) map)
-                | None => map_to_string len' (S i) map
-                end
-    end in
-  map_to_string len (S O) map.
+Fixpoint map_to_string' (len : nat) (i : nat) (map : str) : string :=
+  match len with
+  | O => EmptyString
+  | S len' => match option_ascii_of_nat_option (map i) with
+              | Some a => String a (map_to_string' len' (S i) map)
+              | None => map_to_string' len' (S i) map
+              end
+  end.
+
+Definition map_to_string (len : nat) (map : str) : string :=
+  map_to_string' len (S O) map.
 
 Eval compute in map_to_string hello_world_length last_col.
 
-(** Inductively define whether two mappings are reverse of each other at lenght "n". **)
-Inductive reverse_mapping (n : nat) (f1 f2 : nat -> option nat) : Prop :=
-  ReverseMapping : forall (n1 n2: nat), n1 + n2 = n -> f1 n1 = f2 n2 -> reverse_mapping n f1 f2.
-  
+(** Define whether two [str]s are reverse of each other at lenght "n". *)
+Definition reverse_str (n : nat) (f1 f2 : str) : Prop :=
+  forall (n1 n2: nat), n1 + n2 = n -> f1 n1 = f2 n2.
 
-Definition same_mapping (f1 f2 : nat -> option nat) : Prop :=
+(** Define whether two [str]s are the same. *)
+Definition same_str (f1 f2 : str) : Prop :=
   forall (n : nat), f1 n = f2 n.
 
 (** Prove that the last column of the right-shift permutation matrix is the reverse of the original string mapping. **)
 Theorem last_col_reverse:
   forall (s : string) (l : nat) (m : nat -> option nat),
-    l = length s -> m = string_to_map s -> reverse_mapping l m (lasts l (map_to_conjugacy l m)).
+    l = length s -> m = string_to_map s -> reverse_str l m (lasts (map_to_conjugacy m l) l).
 Proof.
   intros.
   unfold map_to_conjugacy.
@@ -256,9 +268,9 @@ Abort.
 Definition bwt' (s : string) (sort: (nat -> nat -> option nat) -> (nat ->  nat -> option nat)) : string :=
   let s_length := String.length s in
   let s_map := string_to_map s in
-  let s_matrix := map_to_conjugacy s_length s_map in
+  let s_matrix := map_to_conjugacy s_map s_length in
   let sorted_matrix := sort s_matrix in
-  map_to_string s_length (lasts s_length sorted_matrix).
+  map_to_string s_length (lasts sorted_matrix s_length).
 
 (* An example bwt without sorting. *)
 Eval compute in bwt' hello_world_str (fun x => x).
@@ -340,9 +352,6 @@ fun (x:nat) => get_pos eq (sorted_m) length (m x).
 Definition context (k:nat) (m: nat -> (option nat)) : (nat -> (option nat)) :=
 fun (x:nat) => if (x <? k) then (m x) else None.
 
-Definition update' {A : Type} (f : nat -> A) (x: nat) (y: A) : nat -> A := 
-  fun (n : nat) => if Nat_eqb n x then y else f n.
-
 (** Transform a nat list to a index -> nat mapping, i.e. nat -> option nat. *)
 Fixpoint list_to_map' (l : list (option nat)) (start_index : nat) : nat -> option nat :=
   let f := fun _ => None in
@@ -385,7 +394,7 @@ Lemma matrix (m : nat -> nat -> option nat) (length : nat) (eq:eqdec (option nat
   forall (m : nat -> nat -> option nat) (k i: nat) ,
     i <= length ->
     sorted_matrix m k ->
-    same_mapping (context k (m i)) (inverse_bwt eq length i k (m i) sort).
+    same_str (context k (m i)) (inverse_bwt eq length i k (m i) sort).
 Proof.
   intros.
 Admitted.
@@ -407,7 +416,7 @@ Lemma context_k (w: str_matrix) (L : str) (length : nat) :
   forall (k i : nat) ,
     k <= length ->
     i <= length ->
-    same_mapping (context (S k) (right_shift (w i) length)) (prepend (context k (w i)) (lambda L i)).
+    same_str (context (S k) (right_shift (w i) length)) (prepend (context k (w i)) (lambda L i)).
 Proof.
 Admitted.
 
@@ -416,7 +425,7 @@ Definition right_shift_matrix (w: str_matrix) (length : nat) : str_matrix :=
 
 Lemma sort_matrix (w: str_matrix) (length : nat) (k : nat) (sort : nat -> str_matrix -> str_matrix) (pi : nat -> nat) :
   sorted_matrix w k ->
-  forall (n : nat), same_mapping (sort (S k) (right_shift_matrix w length) n) (right_shift (w (pi n)) length).
+  forall (n : nat), same_str (sort (S k) (right_shift_matrix w length) n) (right_shift (w (pi n)) length).
 Proof.
 Admitted.
 
@@ -427,13 +436,13 @@ Lemma matrix' (w: str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option
     length_mapping L length ->
     length_mapping L_sorted length ->
     sorted_matrix w k ->
-    same_mapping L (lasts length w) ->
+    same_str L (lasts w length) ->
     sorted_m L L_sorted length ->
-    same_mapping (context k (w i)) (inverse_bwt_s eq length i k L L_sorted).
+    same_str (context k (w i)) (inverse_bwt_s eq length i k L L_sorted).
 Proof.
   induction k.
   intros. 
-  unfold same_mapping.
+  unfold same_str.
   
   unfold context.
   unfold inverse_bwt_s.
@@ -455,9 +464,9 @@ Lemma matrix'' (w: str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (optio
     length_mapping L length ->
     length_mapping L_sorted length ->
     sorted_matrix w k ->
-    same_mapping L (lasts length w) ->
+    same_str L (lasts w length) ->
     sorted_m L L_sorted length ->
-    forall x : nat, x <= k -> same_mapping (context x (w i)) (inverse_bwt_s eq length i x L L_sorted).
+    forall x : nat, x <= k -> same_str (context x (w i)) (inverse_bwt_s eq length i x L L_sorted).
 Proof.
 
 
