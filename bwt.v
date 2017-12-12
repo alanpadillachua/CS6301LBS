@@ -262,7 +262,7 @@ Proof.
   unfold lasts.
 Abort.
 
-Definition bwt' (s : string) (sort: (nat -> nat -> option nat) -> (nat ->  nat -> option nat)) : string :=
+Definition bwt (s : string) (sort: (nat -> nat -> option nat) -> (nat ->  nat -> option nat)) : string :=
   let s_length := String.length s in
   let s_map := string_to_map s in
   let s_matrix := map_to_conjugacy s_map s_length in
@@ -270,7 +270,7 @@ Definition bwt' (s : string) (sort: (nat -> nat -> option nat) -> (nat ->  nat -
   map_to_string s_length (lasts sorted_matrix s_length).
 
 (* An example bwt without sorting. *)
-Eval compute in bwt' hello_world_str (fun x => x).
+Eval compute in bwt hello_world_str (fun x => x).
 
 
 (** Option nat order. *)
@@ -386,12 +386,10 @@ fun n => lambda m (inverse_bwt' eq tot_length i k m sorted_m n).
 Definition sorted_str (m m_sorted: str) (k : nat) : Prop := True.
 Definition sorted_matrix (matrix : str_matrix) (k : nat) : Prop := True.
 
-Definition length_mapping (s : str) (length : nat): Prop :=
-  forall l, l > length -> s l = None.
-
 (* Length is then a property like the following: *)
 Definition haslen {A:Type} (f : nat -> option A) (len: nat) :=
-  forall i, len <= i <-> f i = None.
+  (*forall i, len <= i <-> f i = None.*)
+  forall l, l > len -> f l = None.
 
 Definition prepend (s : str) (c : option nat) : str :=
   fun n =>
@@ -403,6 +401,7 @@ Definition prepend (s : str) (c : option nat) : str :=
 Definition concat (s1 s2: str) (l1 l2 : nat) : str :=
   fun n => if leb n l1 then s1 n else s2 (n - l1).
 
+(** *)
 Lemma context_k (w: str_matrix) (L : str) (length : nat) :
   forall (k i : nat),
     k <= length ->
@@ -433,8 +432,10 @@ Admitted.
 Lemma matrix' (w1 w2 : str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) (k : nat) :
   forall (i: nat) ,
     i <= length ->
-    length_mapping L length ->
-    length_mapping L_sorted length ->
+    haslen L length ->
+    haslen L_sorted length ->
+    sorted_matrix w1 k ->
+    sorted_matrix w2 k ->
     sorted (leq_optnatctx k) w1 ->
     same_str L (lasts w1 length) ->
     sorted_str L L_sorted length ->
