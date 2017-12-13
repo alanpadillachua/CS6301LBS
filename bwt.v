@@ -262,6 +262,7 @@ Proof.
   unfold lasts.
 Abort.
 
+(** Final BWT implementation taking a sort function as input. *)
 Definition bwt (s : string) (sort: (nat -> nat -> option nat) -> (nat ->  nat -> option nat)) : string :=
   let s_length := String.length s in
   let s_map := string_to_map s in
