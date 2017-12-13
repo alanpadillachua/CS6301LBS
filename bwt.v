@@ -429,7 +429,7 @@ Lemma sort_matrix (w: str_matrix) (length : nat) (k : nat) (sort : nat -> str_ma
 Proof.
 Admitted.
 
-Lemma matrix (w1 w2 : str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) (k : nat) :
+Theorem matrix (w1 w2 : str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) (k : nat) :
   forall (i: nat) ,
     i <= length ->
     haslen L length ->
