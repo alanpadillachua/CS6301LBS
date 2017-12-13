@@ -35,10 +35,16 @@ Local Open Scope string_scope.
 Definition HelloWorld := "Hello World!".
 Definition Cat := "Cat.".
 
-Fixpoint string_to_list (s : string): list (option nat) := 
+Fixpoint string_to_list (s : string): list nat := 
   match s with
-  | EmptyString => None :: nil
-  | String h t => Some (nat_of_ascii h) :: string_to_list t
+  | EmptyString => nil
+  | String h t => nat_of_ascii h :: string_to_list t
+  end.
+
+Fixpoint list_to_string (l : list nat) : string := 
+  match l with
+  | nil => EmptyString
+  | h :: t => String (ascii_of_nat h) (list_to_string t)
   end.
 
 Definition app_item {A : Type} : list A -> A -> list A :=
@@ -58,8 +64,6 @@ Qed.
 
 Infix "+++" := app_item (right associativity, at level 60) : list_scope.
 
-Compute (1::nil) +++ 2.
-
 Definition left_shift {A : Type} : list A -> list A :=
   fix left_shift l :=
   match l with
@@ -77,17 +81,25 @@ Qed.
 
 Definition conjugacy {A : Type} : list A -> list (list A) :=
   fix conjugacy l :=
-  let len := List.length l in
     let fix conjugacy' (l : list A) (len : nat) :=
       match len with
       | O => nil
       | S len' => l :: conjugacy' (left_shift l) len'
       end in
-    conjugacy' l len.
+    conjugacy' l (List.length l).
 
-Eval compute in conjugacy (string_to_list Cat).
+Fixpoint last {A : Type} (l : list A) (d : A) : A :=
+match l with
+  | [ ] => d
+  | [a] => a
+  | h :: t => last t d
+end.
 
-Eval compute in conjugacy (string_to_list HelloWorld).
+Fixpoint last_col {A : Type} (l : list (list A)) (d : A) : list A :=
+  match l with
+  | [ ] => [ ]
+  | h :: t => last h d :: last_col t d
+  end.
 
 (** Module to define nat total order. **)
 Module NatOrder <: TotalLeBool.
@@ -109,7 +121,8 @@ Module NatOrder <: TotalLeBool.
     | _, 0 => false
     | S x', S y' => leb x' y'
     end.
-  Infix "<=?" := leb (at level 35).
+
+  Local Infix "<=?" := leb (at level 35).
   Theorem leb_total : forall a1 a2, a1 <=? a2 \/ a2 <=? a1.
   Proof.
     induction a1; destruct a2; simpl; auto.
@@ -155,65 +168,85 @@ Module OptionNatOrder <: TotalLeBool.
 End OptionNatOrder.
 
 (** Module to define list of option nat total order, i.e., comparator of list. **)
-Module OptionNatListOrder <: TotalLeBool.
-  Definition t := list (option nat).
+Module NatListOrder <: TotalLeBool.
+  Definition t := list nat.
 
-  Fixpoint eqb (l1 l2 : list (option nat)) :=
+  Fixpoint eqb (l1 l2 : list nat) :=
     match l1, l2 with
     | nil, nil => true
     | nil, _ => false
     | _, nil => false
-    | h1 :: t1, h2 :: t2 => if OptionNatOrder.eqb h1 h2
+    | h1 :: t1, h2 :: t2 => if Nat.eqb h1 h2
                             then eqb t1 t2
                             else false
     end.
 
-  Fixpoint leb (x y : list (option nat)) := 
+  Fixpoint leb (x y : list nat) := 
     match x, y with
     | nil, _ => true
     | _, nil => false
-    | hx :: tx, hy :: ty => if OptionNatOrder.eqb hx hy
+    | hx :: tx, hy :: ty => if Nat.eqb hx hy
                             then leb tx ty
-                            else OptionNatOrder.leb hx hy
+                            else NatOrder.leb hx hy
     end.
+
+  Local Infix "<=?" := leb (at level 35).
+  Theorem leb_total : forall a1 a2 : list nat, a1 <=? a2 \/ a2 <=? a1.
+  Proof.
+    induction a1; destruct a2; simpl; auto.
+    rewrite NatOrder.eqb_refl.
+    destruct (Nat.eqb n a).
+    - specialize (IHa1 a2). exact IHa1.
+    - apply NatOrder.leb_total.
+  Qed.
+End NatListOrder.
+
+Module NatZipOrder <: TotalLeBool.
+  Definition t := @prod nat nat.
+
+  Definition eqb (x y : t) :=
+    match x, y with
+    | pair x1 x2, pair y1 y2 => Nat.eqb x1 y1 && Nat.eqb x2 y2
+    end.
+
+  Definition leb (x y : t) :=
+    match x, y with
+    | pair x1 x2, pair y1 y2 => if Nat.eqb x1 y1
+                                then NatOrder.leb x2 y2
+                                else Nat.leb x1 y1
+    end.
+
+  Theorem eqb_refl :
+    forall a b : t, eqb a b = eqb b a.
+  Proof.
+    intros. destruct a; destruct b; simpl.
+    rewrite NatOrder.eqb_refl.
+    rewrite andb_comm.
+    rewrite NatOrder.eqb_refl.
+    rewrite andb_comm.
+    reflexivity.
+  Qed.
 
   Infix "<=?" := leb (at level 35).
   Theorem leb_total : forall a1 a2, a1 <=? a2 \/ a2 <=? a1.
   Proof.
-    induction a1; destruct a2; simpl; auto.
-    rewrite OptionNatOrder.eqb_refl.
-    destruct (OptionNatOrder.eqb o a).
-    - specialize (IHa1 a2). exact IHa1.
-    - apply OptionNatOrder.leb_total.
+    destruct a1; destruct a2; simpl; auto.
+    rewrite NatOrder.eqb_refl. destruct (Nat.eqb n1 n).
+    apply NatOrder.leb_total.
+    apply NatOrder.leb_total.
   Qed.
-End OptionNatListOrder.
+End NatZipOrder.
 
-Module Import OptionNatListSort := Sort OptionNatListOrder.
+Module Import NatSort := Sort NatOrder.
+Module Import NatListSort := Sort NatListOrder.
+Module Import NatZipSort := Sort NatZipOrder.
 
-Example SimpleMergeExample := Eval compute in sort (conjugacy (string_to_list HelloWorld)).
+Definition bwt (s : string) : string :=
+  list_to_string (last_col (NatListSort.sort (conjugacy (string_to_list s))) 1).
 
-Eval compute in SimpleMergeExample.
+Eval compute in bwt "banana".
 
-Check SimpleMergeExample.
-
-Fixpoint last {A : Type} (l : list A) (d : A) : A :=
-match l with
-  | [ ] => d
-  | [a] => a
-  | h :: t => last t d
-end.
-
-Fixpoint last_col {A : Type} (l : list (list A)) (d : A) : list A :=
-  match l with
-  | [ ] => [ ]
-  | h :: t => last h d :: last_col t d
-  end.
-
-Example bwt := last_col SimpleMergeExample None.
-
-Module Import OptionNatSort := Sort OptionNatOrder.
-
-Example sort_bwt := Eval compute in sort bwt.
+(*Example sort_bwt := Eval compute in sort bwt.*)
 
 (*Inductive prod {A B : Type} : Type :=
 | pair : A -> B -> (@prod A B).
@@ -227,126 +260,62 @@ Definition snd {A B : Type} (p : @prod A B) : B :=
   | pair x y => y
   end.
 *)
-Fixpoint zip {A : Set} (l : list A) : list (prod A nat) :=
-  let fix zipi {A : Set} (l : list A) (i : nat) : list (prod A nat) :=
-    match l with
-    | nil => nil
-    | h :: t => (pair h i) :: zipi t (S i)
-    end in
-  zipi l O.
 
-Eval compute in bwt.
+Fixpoint zip' {A : Set} (l : list A) (i : nat) : list (prod A nat) :=
+  match l with
+  | nil => nil
+  | h :: t => (pair h i) :: zip' t (S i)
+  end.
 
-Eval compute in zip bwt.
+Definition zip := fun {A : Set} (l : list A) => zip' l O.
 
-Module OptionNatZipOrder <: TotalLeBool.
-  Definition t := @prod (option nat) nat.
-
-  Definition eqb (x y : t) :=
-    match x, y with
-    | pair x1 x2, pair y1 y2 => OptionNatOrder.eqb x1 y1 && Nat.eqb x2 y2
-    end.
-
-  Definition leb (x y : t) :=
-    match x, y with
-    | pair x1 x2, pair y1 y2 => if OptionNatOrder.eqb x1 y1
-                                then NatOrder.leb x2 y2
-                                else OptionNatOrder.leb x1 y1
-    end.
-
-  Theorem eqb_refl :
-    forall a b : t, eqb a b = eqb b a.
-  Proof.
-    intros. destruct a; destruct b; simpl.
-    rewrite NatOrder.eqb_refl. rewrite OptionNatOrder.eqb_refl. reflexivity.
-  Qed.
-
-  Infix "<=?" := leb (at level 35).
-  Theorem leb_total : forall a1 a2, a1 <=? a2 \/ a2 <=? a1.
-  Proof.
-    destruct a1; destruct a2; simpl; auto.
-    rewrite OptionNatOrder.eqb_refl. destruct (OptionNatOrder.eqb o0 o).
-    apply NatOrder.leb_total.
-    apply OptionNatOrder.leb_total.
-  Qed.
-End OptionNatZipOrder.
-
-Module Import OptionNatZipSort := Sort OptionNatZipOrder.
-
-
-Example zipped_bwt := Eval compute in zip bwt.
-Example sorted_bwt := Eval compute in sort zipped_bwt.
-
-Eval compute in sorted_bwt.
 
 (** Get the index of an element in a list. **)
 
-Fixpoint indexOf {A : Type} (eq : cmp A) (l : list A) (target : A) : option nat :=
-  let fix indexOf' {A : Type} (eq : cmp A) (l : list A) (target : A) (i : nat) : option nat :=
+Fixpoint indexOf {A : Type} (eq : cmp A) (l : list A) (target : A) : nat :=
+  let fix indexOf' {A : Type} (eq : cmp A) (l : list A) (target : A) (i : nat) : nat :=
     match l with
-    | nil => None
-    | h :: t => if eq h target then Some i else indexOf' eq t target (S i)
+    | nil => length l
+    | h :: t => if eq h target then i else indexOf' eq t target (S i)
     end in
   indexOf' eq l target O.
-
-Print indexOf.
-
 
 Definition update {A B : Type} (eq : cmp A) (f : A -> B) (x: A) (y: B) : A -> B := 
   fun (n : A) => if eq n x then y else f n.
 
 Definition standard_permutation :=
   let fix standard_permutation' (start_index : nat)
-                                (f : option nat -> option nat)
+                                (f : nat -> nat)
                                 (A : Type)
                                 (eq : cmp (@prod A nat))
                                 (zipped_bwt sorted_bwt : list (@prod A nat)) :
-                                option nat -> option nat :=
+                                nat -> nat :=
     match sorted_bwt with
     | nil => f
     | h :: t => standard_permutation' (S start_index) 
-                                      (update OptionNatOrder.eqb f (Some start_index) (indexOf eq zipped_bwt h))
+                                      (update Nat.eqb f start_index (indexOf eq zipped_bwt h))
                                       A eq zipped_bwt t
     end in
-  standard_permutation' O (fun (_: option nat) => None).
+  standard_permutation' O (fun (_: nat) => 0).
 
-Print standard_permutation.
-
-Check standard_permutation.
-
-Example bwt_sp := standard_permutation (option nat) OptionNatZipOrder.eqb zipped_bwt sorted_bwt.
-
-Check bwt_sp.
-Eval compute in bwt_sp (Some 1).
-Eval compute in bwt_sp (Some 4).
-Eval compute in bwt_sp (bwt_sp (Some 1)).
 
 Definition list_to_map :=
-  fix list_to_map (eq : cmp (option nat)) (l : list (option nat)) (start_index : nat) : option nat -> option nat :=
-  let f := fun _ => None in
+  fix list_to_map (eq : nat -> nat -> bool) (l : list nat) (start_index : nat) : nat -> nat :=
+  let f := fun _ => length l in
   match l with
   | nil => f
-  | h :: t => update eq (list_to_map eq t (S start_index)) (Some start_index) h
+  | h :: t => update eq (list_to_map eq t (S start_index)) start_index h
   end.
 
-Example map_bwt := list_to_map OptionNatOrder.eqb bwt O.
-Example map_sorted_bwt := list_to_map OptionNatOrder.eqb sort_bwt O.
-
-Eval compute in map_bwt (Some 1).
-
-Check map_bwt.
-
-Eval compute in map_bwt (bwt_sp (bwt_sp (Some 1))).
-
 Definition product:=
-  fix product (k : nat) (bwt_sp : option nat -> option nat) (i : nat) : list (option nat) :=
+  fix product (k : nat) (bwt_sp : nat -> nat) (i : nat) : list nat :=
     match k with
-    | O => bwt_sp (Some i) :: nil
+    | O => nil
+    | S O => bwt_sp i :: nil
     | S k' => let product_k' := product k' bwt_sp i in
-              product_k' +++ (bwt_sp (last product_k' None))
+              product_k' +++ (bwt_sp (last product_k' O))
     end.
 
-Compute product 12 bwt_sp 4.
 
 Definition ascii_of_nat_option (n : option nat) : option ascii :=
   match n with
@@ -354,17 +323,13 @@ Definition ascii_of_nat_option (n : option nat) : option ascii :=
   | Some n' => Some (ascii_of_nat n')
   end.
 
-Example inverse_bwt := map ascii_of_nat_option (map map_bwt (product 12 bwt_sp 3)).
+Definition inverse_bwt (s : string) (index : nat) :=
+  let map_bwt := list_to_map Nat.eqb (string_to_list s) O in
+  let zipped_bwt := zip (string_to_list s) in
+  let sorted_bwt := sort zipped_bwt in
+  (list_to_string (map map_bwt (product (String.length s) (standard_permutation (nat) NatZipOrder.eqb zipped_bwt sorted_bwt) index))).
 
-Eval compute in inverse_bwt.
 
-Fixpoint list_to_string (l : list (option ascii)) : string :=
-  match l with
-  | nil => EmptyString
-  | (Some h) :: t => String h (list_to_string t)
-  | _ => EmptyString
-  end.
+Eval compute in inverse_bwt (bwt "Hello World!") 2.
+Eval compute in inverse_bwt (bwt "banana") 3.
 
-Definition bwt' (s : string) : string := s.
-
-Definition inv_bwt (s : string) : string := s.
