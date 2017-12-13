@@ -401,7 +401,7 @@ Definition prepend (s : str) (c : option nat) : str :=
 Definition concat (s1 s2: str) (l1 l2 : nat) : str :=
   fun n => if leb n l1 then s1 n else s2 (n - l1).
 
-(** *)
+(** Right shift is equivalent with prepend last letter. *)
 Lemma context_k (w: str_matrix) (L : str) (length : nat) :
   forall (k i : nat),
     k <= length ->
