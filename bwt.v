@@ -429,14 +429,13 @@ Lemma sort_matrix (w: str_matrix) (length : nat) (k : nat) (sort : nat -> str_ma
 Proof.
 Admitted.
 
-Lemma matrix' (w1 w2 : str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) (k : nat) :
+Lemma matrix (w1 w2 : str_matrix) (L L_sorted: str) (length : nat) (eq:eqdec (option nat)) (k : nat) :
   forall (i: nat) ,
     i <= length ->
     haslen L length ->
     haslen L_sorted length ->
-    sorted_matrix w1 k ->
-    sorted_matrix w2 k ->
     sorted (leq_optnatctx k) w1 ->
+    sorted (leq_optnatctx (S k)) w2 ->
     same_str L (lasts w1 length) ->
     sorted_str L L_sorted length ->
     forall x : nat, x <= k -> same_str (context x (w1 i)) (inverse_bwt eq length i x L L_sorted).
