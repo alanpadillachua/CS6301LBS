@@ -246,21 +246,6 @@ Definition bwt (s : string) : string :=
 
 Eval compute in bwt "banana".
 
-(*Example sort_bwt := Eval compute in sort bwt.*)
-
-(*Inductive prod {A B : Type} : Type :=
-| pair : A -> B -> (@prod A B).
-
-Definition fst {A B : Type} (p : @prod A B) : A :=
-  match p with
-  | pair x y => x
-  end.
-Definition snd {A B : Type} (p : @prod A B) : B :=
-  match p with
-  | pair x y => y
-  end.
-*)
-
 Fixpoint zip' {A : Set} (l : list A) (i : nat) : list (prod A nat) :=
   match l with
   | nil => nil
