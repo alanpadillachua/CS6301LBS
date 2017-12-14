@@ -58,20 +58,35 @@ string mapping version of our Coq code.
 
 \subsubsection{Forward BWT}
 
-Given a string as input, we first convert a string into a str mapping, and
-construct the matrix by right shift the str mapping, then assuming a given sort
+Given a string $S$ as input, we first convert a string into a $str$ mapping
+$s$, and construct the matrix by right shift $s$ , then assuming a given $sort$
 function that sort the matrix lexicographically, and return the last column of
 the sorted matrix as the result string.
 
 \subsubsection{Inverse BWT}
 
-Given a string and an index as input, we assume a given sort function that sort
-the string lexicographically, we first generate the index mapping pi between
-the original string and the sorted string, and then recursively generates a
-sequence of indices using pi and the given index, each of which corresponds to
-one character in the original string, and apply all the index with the given
-string to regenerate the original before BWT.
+Given a string $L$ and an index $i$ as input, we assume a given $sort$ function
+that sort $L$ lexicographically, we first generate the index mapping $\pi_L$
+between the original string and the sorted string, and then recursively
+generates a sequence of indices as $\pi_L^k(i)$, each of which corresponds to
+$k$-th character in the original string, and apply all the index with the given
+string $L$ to regenerate the original before BWT.
 
+\subsection{Difficulties}
+
+\subsubsection{Sorting}
+
+The BWT algorithm requires two stable lexicographical sorts: matrix sort and
+string sort. Our main implementation of strings and matrices uses an abstract
+mapping of the strings rather than lists. This prohibited us from importing a
+Coq sorting library because it was unclear how our abstract mapping could use a
+sorting library meant for lists. To overcome this, we decided that instead of
+proving a sorting algorithm ourselves, we would assume either a sorting
+algorithm that satisfies a set of properties for our abstract mapping is given,
+or the sorted version of the string or matrix mapping is given.
+
+Another problem following this path is how to introduce sort as our
+assumption.
 
 \end{document}
 
