@@ -1,6 +1,7 @@
 \documentclass[11pt,letterpaper,]{article}
 
-% AMS packages.
+\usepackage{mathpazo}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath,amsthm,amsfonts,mathtools,amssymb}
 \usepackage{booktabs}
 \usepackage{cite}
@@ -10,7 +11,7 @@
 
 \newtheorem{theorem}{Theorem}
 
-\title{Verifying Burrows Wheeler Transformation In Coq}
+\title{Verifying Burrows Wheeler Transformation\\ In Coq}
 \author{Hanlin He, Sourav Dasgupta, Paul Parrot, Alan Padilla Chua}
 
 \begin{document}
@@ -67,11 +68,11 @@ lexicographically. Finally, we return the last column of the sorted matrix as
 the result string.
 
 Following is a description of our approach to implementing the inverse BWT.
-Given a string $L$, an index $i$, and a sort function as input, we first sort
-$L$ lexicographically. Then we generate the index mapping $\pi_L$ between the
-given string and the sorted string. We then recursively generate a sequence of
-indices as $\pi_L^k(i)$, each of which corresponds to the $k$-th character in
-the original string. Finally, we apply all the indices with the given string
+Given a string $L$, an index $i$, and a \emph{sort} function as input, we first
+sort $L$ lexicographically. Then we generate the index mapping $\pi_L$ between
+the given string and the sorted string. We then recursively generate a sequence
+of indices as $\pi_L^k(i)$, each of which corresponds to the $k$-th character
+in the original string. Finally, we apply all the indices with the given string
 $L$ to regenerate the original string before the forward BWT.
 
 \subsection{Difficulties}
