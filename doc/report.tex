@@ -1,9 +1,10 @@
-\documentclass[11pt,letterpaper,titlepage]{article}
+\documentclass[11pt,letterpaper,]{article}
 
 % AMS packages.
 \usepackage{amsmath,amsthm,amsfonts,mathtools,amssymb}
 \usepackage{booktabs}
 \usepackage{cite}
+\usepackage{float}
 \usepackage{hyperref}
 \usepackage{cleveref}
 
@@ -159,6 +160,96 @@ conjugacy class of our original string $m$. Note that since $m$ itself is one
 of the $w_i$'s, if we start with the correct value of $i$, we can get the
 original string $m$. Also note that if we set the value of $k$ to be
 $length(m)$, we get the entire $m$ back.
+
+\section{Accomplishments}
+
+\subsection{Theorem}
+
+\emph{Matrix} is the theorem that we constructed from our implementation that
+we believe proves the losslessness of the BWT. This theorem states that given
+the last column $L$ (and the sorted last column $L\_sorted$), of the sorted
+right shift matrix, and an index $i$, we can perform the inverse BWT which will
+return the string at index $i$ in the sorted right shift matrix. This theorem
+states a general solution whereby we can reconstruct any string from the
+conjugacy matrix given the forward BWT result string and the index at which
+that string resides within the matrix. Obviously this implies that with our
+solution we can also reconstruct the original string that was given so long as
+we know its index.
+
+\subsection{Working Functions (Definitions)}
+
+\subsubsection{\texttt{bwt}}
+
+This function is our implementation of the forward BWT. It takes a string and a
+sort function as input. First, it creates a string mapping from the given
+string. Then it generates a matrix such that each row contains one right
+shifted permutation of the string mapping. Then it uses the sort function to
+lexicographically sort the rows. The last column, denoted $L$, is the output
+string. This implementation relies on several helper functions described below.
+
+\begin{enumerate}
+    \item \verb|string_to_map|\\
+        This function takes a normal ascii string and returns it in a mapping
+        form that is defined by us. This mapping makes it easier for us to
+        generate a matrix of permutations for the string.
+    \item \verb|map_to_conjugacy|\\
+        This function returns a matrix such that each row contains a
+        permutation of the original string. These permutations are all right
+        shifted by one character and wrap around to the beginning of the row.
+    \item \verb|map_to_string|\\
+        This function takes our defined mapping form of a string and returns
+        the corresponding string.
+\end{enumerate}
+
+\subsubsection{\texttt{inverse\_bwt}}
+
+This function is our implementation of the inverse BWT. It simply applies
+\verb|lambda| to each index in the string returned by \verb|inverse_bwt'|; The
+result of which is the original string. This implementation relies on several
+helper functions described below.
+
+\begin{enumerate}
+    \item \verb|pi|\\
+        This function takes a BWT string, and it's lexicographically sorted
+        permutation, as input and returns a mapping. The returned mapping
+        represents the index of each letter in the transformed string.
+    \item \verb|inverse_bwt'|\\
+        This function uses \verb|pi| to generate the index mapping. It then
+        recursively generates a sequence of indices; Each of which corresponds
+        to one character in the original string.
+    \item \verb|lambda|\\
+        This function takes an input string $m$ and index $i$ and returns the
+        character at position $i$ in $m$.
+\end{enumerate}
+
+\section{Team Coordination}
+
+\begin{table}[H]
+\centering
+\caption{Coordination}
+\begin{tabular}{l|r}
+\toprule
+Task & Person\\
+\midrule
+Presentation Slides & Alan, Paul, Hanlin, Sourav\\
+Presentation & Alan, Hanlin\\
+Coq Implementation & Hanlin, Sourav, Alan\\
+Coq Proofs & Hanlin, Sourav, Paul\\
+Report & Alan, Paul, Hanlin, Sourav\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Future Work}
+
+We laid a solid foundation for a proper proof to be completed. However certain
+circumstances, described earlier in the report, prevented us from fully
+achieving our goal. For future work we propose the full completion of the
+theorem using our current implementation and potentially some modifications
+that will come from working on the proof. We believe that completion of this
+proof will allow future teams to focus on formally verifying the other sections
+of \emph{bzip2}'s compression stack; And eventually leading to a complete,
+machine-verified, proof of \emph{bzip2}.
 
 \bibliographystyle{plain}
 \bibliography{report.bib}{}
