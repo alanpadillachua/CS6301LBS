@@ -1,14 +1,16 @@
 \documentclass[11pt,letterpaper,titlepage]{article}
 
 % AMS packages.
-%\usepackage{amsmath}
-%\usepackage{amsthm}
-%\usepackage{amsfonts}
-%\usepackage{mathtools}
-%\usepackage{amssymb}
+\usepackage{amsmath,amsthm,amsfonts,mathtools,amssymb}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{cleveref}
+
+\newtheorem{theorem}{Theorem}
 
 \title{Verifying Burrows Wheeler Transformation In Coq}
-\author{Hanlin He, Sourav Dasgupta, Paul Perrot, Alan Padilla Chua}
+\author{Hanlin He, Sourav Dasgupta, Paul Parrot, Alan Padilla Chua}
 
 \begin{document}
 
@@ -16,20 +18,19 @@
 
 \section{Motivation}
 
-The idea that spawned this research project was given by Dr. Kevin Hamlen. When
-verifying security implementations, compression algorithms seemed to be
-overlooked. This left a security gap that is to be trusted without any formal
-verification. Our initial goal was to verify a full compression algorithm from
-top to bottom. However, we narrowed our search to \emph{bzip2}'s compression
-stack and saw that its core algorithm depended on the Burrows Wheeler
-Transformation\cite{}.
-
-BWT (Burrows Wheeler Transformation), has some important security properties
-related to integrity. It holds that BWT is a reversible transformation that has
-no side effects on the data. We saw BWT to be of great potential to be verified
-in Coq. Its full verification could narrow trusted code base of \emph{bzip2}'s
-compression and allow future teams to tackle the full verification of
-\emph{bzip2}.
+The idea for this research project was given to our team by Dr. Kevin Hamlen.
+Our initial goal was to verify a full compression algorithm from top to bottom.
+However, given time constraints we narrowed our search to \emph{bzip2}'s
+compression stack and saw that its core algorithm depended on the Burrows
+Wheeler Transformation\cite{bzip2}. BWT (Burrows Wheeler Transformation) is a
+block-sorting compression algorithm designed to improve the compressibility of
+a given string. BWT also has some important security properties related to
+integrity. It has a lossless property, meaning the forward transformation can
+be reversed to get back the original string. This means that there is no loss
+of data in either the forward or inverse transformations. We saw BWT to be of
+great potential to be verified in Coq. Its full verification could narrow the
+trusted code base of \emph{bzip2}'s compression and allow future teams to
+tackle the full verification of \emph{bzip2}.
 
 \section{Preliminaries}
 
@@ -56,21 +57,21 @@ noting that we did create a generic implementation of BWT using lists but did
 not attempt to prove any lemmas about it. Our proofs are solely related to the
 string mapping version of our Coq code.
 
-\subsubsection{Forward BWT}
+Following is a description of our approach to implementing the forward BWT.
+Given a string $S$ as input, we first convert the string into a $str$ mapping
+$s$. Then we construct a matrix by right shifting $s$. This fills the matrix
+with each permutation of the original string. To avoid proving a sort function
+for our mapping, we then assume a sort function is given that sorts the matrix
+lexicographically. Finally, we return the last column of the sorted matrix as
+the result string.
 
-Given a string $S$ as input, we first convert a string into a $str$ mapping
-$s$, and construct the matrix by right shift $s$ , then assuming a given $sort$
-function that sort the matrix lexicographically, and return the last column of
-the sorted matrix as the result string.
-
-\subsubsection{Inverse BWT}
-
-Given a string $L$ and an index $i$ as input, we assume a given $sort$ function
-that sort $L$ lexicographically, we first generate the index mapping $\pi_L$
-between the original string and the sorted string, and then recursively
-generates a sequence of indices as $\pi_L^k(i)$, each of which corresponds to
-$k$-th character in the original string, and apply all the index with the given
-string $L$ to regenerate the original before BWT.
+Following is a description of our approach to implementing the inverse BWT.
+Given a string $L$, an index $i$, and a sort function as input, we first sort
+$L$ lexicographically. Then we generate the index mapping $\pi_L$ between the
+given string and the sorted string. We then recursively generate a sequence of
+indices as $\pi_L^k(i)$, each of which corresponds to the $k$-th character in
+the original string. Finally, we apply all the indices with the given string
+$L$ to regenerate the original string before the forward BWT.
 
 \subsection{Difficulties}
 
@@ -85,8 +86,82 @@ proving a sorting algorithm ourselves, we would assume either a sorting
 algorithm that satisfies a set of properties for our abstract mapping is given,
 or the sorted version of the string or matrix mapping is given.
 
-Another problem following this path is how to introduce sort as our
-assumption.
+\subsubsection{Understanding the Mathematical Paper Proof of Burrows Wheeler
+Transform}
+
+Before we go into the paper proof, we would like to point out that the proof
+uses the following notations:
+
+\begin{itemize}
+    \item $\Sigma$: Finite, non-empty symbol/alphabet set. Every string $L$ is
+        composed of a sequence of symbols which belong to $\Sigma$.
+    \item $\lambda_L$: A mapping $\mathbb{N}\rightarrow\Sigma$, which given a
+        natural number $i \leq length(L)$, will return the symbol $\alpha$
+        located at the $i$th position in $L$.
+    \item $\pi_L$: A mapping $\mathbb{N}\rightarrow\mathbb{N}$, which maps an
+        index $i \leq length(L)$ with the index of the symbol $\alpha$ in $L$
+        that should have been in position $i$ if the symbols in string $L$ were
+        stable sorted.
+    \item $context_k(L)$: Means the $k$ length prefix of string $L$.
+    \item $\textit{conjugacy class of string }L$: A sequence or collection of
+        strings where each string $w_i$ is a right-shift of $w_{i-1}$, with
+        $w_0 = L$. Note that the right shift is a circular one, i.e., the last
+        symbol in $w_{i-1}$ goes to the beginning of $w_i$ . We treat the
+        conjugacy class of $L$ as a matrix.
+\end{itemize}
+
+The preceding notations have been described very briefly for convenience. For
+full definitions, the reader is requested to refer\cite{kufleitner2009on}.
+
+The paper theorem follows:
+
+The statement is a generic one which states that, given a matrix of $k$ order
+context sorted conjugacy class of a string $m$ , the string $L$ composed of the
+last letters of each of the string in the sorted conjugacy class, the $t$-order
+context of $w_i$ can be constructed as follows: starting with $i$ , and
+recursively apply the $\pi_L$ function, and take the letter in $L$ , indexed at
+each recursive application of $\pi_L$. The recursion continues till $k$.
+
+A more formal way of presenting the above stated notion (as mentioned in Lemma
+3 of \cite{kufleitner2009on}) is as follows:
+
+\begin{theorem}
+\newcommand*{\context}[2]{\ensuremath{\mathrm{context}_{#1}(#2)}}
+\newcommand*{\last}[1]{\ensuremath{\mathrm{last}(#1)}}
+Let $k \in \mathbb{N}$. Let
+$\bigcup_{i=1}^s[v_i]=\{w_1,\ldots,w_n\}\subseteq\Sigma^+$ be a multiset built
+from conjugacy classes $[v_i]$. Let $M=(w_1,\ldots,w_n)$ satisfy
+$\context{k}{w_1}\leq\cdots\leq\context{k}{w_n}$ and let
+$L=\last{w_1}\cdots\last{w_n}$ be the sequence of the last symbols.
+
+Then
+\[\context{k}{w_i}=\lambda_L\pi_L(i)\cdot\lambda_L\pi_L^2(i)\cdots\lambda_L\pi_L^k(i)\]
+where $\pi_L^k$ denotes the $t$-fold application of $\pi_L$ and $\lambda_L\pi_L^t(i)=\lambda_L\big(\pi_L^t(i)\big)$.
+\end{theorem}
+
+The proof is done using induction. While we do not present the entire proof in
+the paper, the core idea is briefly explained as follows: It is trivial to show
+that the above theorem holds for $k=0$. As the induction hypothesis, it is
+assumed in the paper that the for any $t \leq k$, the theorem holds for $t-1$.
+Using the hypothesis, each $w_i$ is then right shifted and sorted by $t$-order
+context resulting in the sequence $(u_1,\ldots,u_n)$. Following this, it is
+argued that $t$-order context of $u_i$ equals the $t$-order context of
+$w_{\pi_L}(i)$. Plugging this relation to the induction hypothesis yields the
+induction.
+
+\subsubsection{List of Necessary Implications for the Final Theorem}
+
+Interestingly, the proof mentioned in the previous section itself tells us how
+to compute the inverse of BWT. If we have the string $L$ (which is the BWT
+transform of $m$) and $\pi_L$ permutation (which can be constructed from $L$ by
+sorting $L$ ), we can compute $k$ order context of any $w_i$ belonging to the
+conjugacy class of our original string $m$. Note that since $m$ itself is one
+of the $w_i$'s, if we start with the correct value of $i$, we can get the
+original string $m$. Also note that if we set the value of $k$ to be
+$length(m)$, we get the entire $m$ back.
+
+\bibliographystyle{plain}
+\bibliography{report.bib}{}
 
 \end{document}
 
